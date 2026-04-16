@@ -13,9 +13,9 @@ SAFRAN Fairy                                     . ݁. ݁       ⊹ ₊.      (
 # SAFRAN Fairy
 
 <!-- badges: start -->
-[![MADE WITH AI](https://raw.githubusercontent.com/louis-heraut/ai-label-badge/main/ai-label_badge-made-with-ai.svg)](https://ai-label.org/)
+[![MADE WITH AI](https://raw.githubusercontent.com/lou-heraut/ai-label-badge/main/ai-label_badge-made-with-ai.svg)](https://ai-label.org/)
 [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-green)](https://lifecycle.r-lib.org/articles/stages.html)
-![](https://img.shields.io/github/last-commit/louis-heraut/safran-fairy)
+![](https://img.shields.io/github/last-commit/lou-heraut/safran-fairy)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
 <!-- badges: end -->
 
@@ -71,7 +71,7 @@ Voir `resources/safran_variables.csv` pour la liste complète.
 ### Installation
 ```bash
 # Cloner le dépôt
-git clone https://github.com/louis-heraut/safran-fairy.git
+git clone https://github.com/lou-heraut/safran-fairy.git
 cd safran-fairy
 
 # Installation

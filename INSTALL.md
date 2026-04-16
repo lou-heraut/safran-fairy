@@ -19,7 +19,7 @@ sudo apt install -y \
 ### 2. Installation du projet
 ```bash
 # Cloner le projet
-sudo git clone https://github.com/louis-heraut/safran-fairy.git /opt/safran-fairy
+sudo git clone https://github.com/lou-heraut/safran-fairy.git /opt/safran-fairy
 cd /opt/safran-fairy
 # Installer le virtualenv et les dépendances Python
 sudo make install
