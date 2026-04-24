@@ -69,7 +69,7 @@ update: ## Met à jour le projet depuis git
 
 run-all: ## Exécute le pipeline complet (dev)
 	@echo "$(GREEN)Exécution du pipeline complet...$(NC)"
-	$(PYTHON_VENV) main.py --all --overwrite
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --all --overwrite
 
 run-as-service: ## Exécute comme le ferait le service systemd
 	@echo "$(GREEN)Exécution du pipeline complet par le service...$(NC)"
