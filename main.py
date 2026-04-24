@@ -123,7 +123,8 @@ def main():
     if args.all or args.download:
         downloaded_files = download(STATE_FILE, DOWNLOAD_DIR,
                                     METEO_BASE_URL, METEO_DATASET_ID)
-        clean_local(DOWNLOAD_DIR)
+        removed = clean_local(DOWNLOAD_DIR)
+        downloaded_files = [f for f in downloaded_files if f not in removed]
         if not downloaded_files:
             return
 

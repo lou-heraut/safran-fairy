@@ -15,10 +15,11 @@ def clean_local(directory,
                     'latest': r'latest-(\d{8})-(\d{8})',
                     'previous': r'previous-(\d{4})-(\d{6})'
                 }):
-    """Version locale de ton code actuel"""
     directory = Path(directory)
     print("\nNETTOYAGE")
     
+    removed = []
+
     for file_type, pattern in patterns.items():
         print(f"\nRecherche de fichiers '{file_type}'...")
         
@@ -36,8 +37,11 @@ def clean_local(directory,
         for file in files_to_delete:
             print(f"   - 🗑️ {file.name}")
             file.unlink()
+            removed.append(file)
         
         print(f"   - 📊 {len(files_to_delete)} fichier(s) supprimé(s)")
+
+    return removed
 
 
 def clean_dataverse(dataset_DOI: str,
