@@ -14,3 +14,5 @@ download_state.json
 05_catalog/
 .python_env/
 *.gpkg
+__pycache__/
+04_data-output-prod/
