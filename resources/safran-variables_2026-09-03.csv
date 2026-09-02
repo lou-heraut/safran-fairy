@@ -8,7 +8,7 @@ DLI,Rayonnement atmosphérique,J/cm2,,]00UTC-00UTC]
 SSI,Rayonnement visible,J/cm2,,]00UTC-00UTC]
 HU,Humidité relative,%,,]00UTC-00UTC]
 EVAP,Evapotranspiration totale,mm,0.1,]06UTC-06UTC]
-ETP,Evapotranspiration potentielle (Penman-Monteith),mm,0.1,]06UTC-06UTC]
+ETP,Evapotranspiration potentielle (Penman-Monteith FAO-56),mm,0.1,]06UTC-06UTC]
 PE,Pluies efficaces,mm,0.1,]06UTC-06UTC]
 SWI,Indice d'humidité des sols,%,,]06UTC-06UTC]
 SSWI_10J,Indice sécheresse de l'humidité des sols sur 10 jours,sans unité,,

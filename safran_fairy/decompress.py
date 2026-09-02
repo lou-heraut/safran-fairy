@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Louis Héraut <louis.heraut@inrae.fr>
+# SPDX-License-Identifier: GPL-3.0-or-later
 import os
 import gzip
 import shutil
@@ -5,7 +7,6 @@ import requests
 from pathlib import Path
 from art import tprint
 
-from .clean import clean_local
 
 
 def decompress_file(gz_file, RAW_DIR):

@@ -1,10 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Louis Héraut <louis.heraut@inrae.fr>
+# SPDX-License-Identifier: GPL-3.0-or-later
 import os
 import pandas as pd
 from pathlib import Path
 import xarray as xr
 from art import tprint
 
-from .clean import clean_local
 
 
 def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE):
@@ -123,9 +124,7 @@ def convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE,
     CONVERT_DIR.mkdir(parents=True, exist_ok=True)
 
     if splited_files is None:
-        splited_files = list(Path(SPLIT_DIR).glob("*.parquet"))
-    else:
-        splited_files = [f for sublist in splited_files for f in sublist]
+        splited_files = sorted(Path(SPLIT_DIR).glob("*.parquet"))
 
     tprint("convert", "small")
     print("CONVERSION")

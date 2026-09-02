@@ -1,173 +1,181 @@
+# SPDX-FileCopyrightText: 2026 Louis Héraut <louis.heraut@inrae.fr>
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Mirror the data.gouv.fr dataset locally, downloading only what changed.
+
+Nothing here reads a source file name to guess what a file holds: that job
+belongs to sources.py, so that a new upstream reshuffle touches one module.
+"""
+
+from __future__ import annotations
+
 import json
 import os
-import requests
 from datetime import datetime
 from pathlib import Path
+
+import requests
 from art import tprint
 
-from .clean import clean_local
+from .sources import Resource, check_inventory, describe, list_resources
 
 
-def load_state(STATE_FILE):
-    """Charge l'état des téléchargements précédents"""
+def load_state(STATE_FILE) -> dict:
+    """Read what was downloaded last time, keyed by resource id."""
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, 'r') as f:
+        with open(STATE_FILE) as f:
             return json.load(f)
     return {}
 
 
-def save_state(state, STATE_FILE):
-    """Sauvegarde l'état des téléchargements"""
-    with open(STATE_FILE, 'w') as f:
+def save_state(state: dict, STATE_FILE) -> None:
+    with open(STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
 
 
-def get_resources(API_URL):
-    """Récupère la liste des ressources depuis l'API"""
-    response = requests.get(API_URL)
-    response.raise_for_status()
-    data = response.json()
-    resources = data.get('resources', [])
-    return resources
+def local_path(resource: Resource, DOWNLOAD_DIR) -> Path:
+    return Path(DOWNLOAD_DIR) / resource.filename
 
 
-def has_changed(resource, state, DOWNLOAD_DIR):
+def has_changed(resource: Resource, state: dict, DOWNLOAD_DIR) -> bool:
     """
-    Vérifie si un fichier a changé depuis le dernier téléchargement
-    Compare la date 'last_modified' de l'API avec celle sauvegardée
+    Whether a resource must be downloaded again.
+
+    Upstream offers no usable checksum: "analysis:checksum" is missing on the
+    large files, which data.gouv marks "File too large to download". The pair
+    (last_modified, size) is what is available, completed by the state of the
+    local copy so that a truncated or deleted file is fetched again.
     """
-    resource_id = resource['id']
-    
-    # Si jamais téléchargé → oui, il a "changé"
-    if resource_id not in state:
+    known = state.get(resource.id)
+    if known is None:
         return True
-    
-    # Comparer la date de modification
-    current_date = resource.get('last_modified')
-    saved_date = state[resource_id].get('last_modified')
-    
-    if current_date != saved_date:
+    if known.get("last_modified") != resource.last_modified:
         return True
-    
-    # Vérifier si le fichier existe encore localement
-    filename = state[resource_id].get('filename')
-    if filename and not os.path.exists(os.path.join(DOWNLOAD_DIR, filename)):
+    if resource.size and known.get("size_bytes") != resource.size:
         return True
-    
+
+    path = local_path(resource, DOWNLOAD_DIR)
+    if not path.exists():
+        return True
+    if resource.size and path.stat().st_size != resource.size:
+        return True
+
     return False
 
 
-def download_file(resource, DOWNLOAD_DIR):
-    """Télécharge un fichier"""
-    url = resource.get('url')
-    
-    filename = url.split('/')[-1].split('?')[0]
-    filepath = os.path.join(DOWNLOAD_DIR, filename)
-    
-    print(f"\n📥 Téléchargement: {resource.get('title', filename)}")
-    print(f"   → {filepath}")
-    
+def download_file(resource: Resource, DOWNLOAD_DIR) -> dict | None:
+    """
+    Fetch one resource. Writes to a « .part » file renamed once complete, so
+    that an interrupted run never leaves behind a file that looks whole.
+    """
+    path = local_path(resource, DOWNLOAD_DIR)
+    partial = path.with_suffix(path.suffix + ".part")
+
+    print(f"\n📥 Téléchargement : {resource.filename}")
+
     try:
-        response = requests.get(url, stream=True)
+        response = requests.get(resource.url, stream=True, timeout=60)
         response.raise_for_status()
-        
-        total_size = int(response.headers.get('content-length', 0))
-        downloaded = 0
-        
-        with open(filepath, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if total_size > 0:
-                        percent = (downloaded / total_size) * 100
-                        print(f"   Progression: {percent:.1f}%", end='\r')
-        
-        size_mb = downloaded / (1024*1024)
-        print(f"\n   ✅ Téléchargé: {size_mb:.2f} Mo")
-        
+
+        expected = int(response.headers.get("content-length", 0))
+        written = 0
+        with open(partial, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1 << 20):
+                if not chunk:
+                    continue
+                f.write(chunk)
+                written += len(chunk)
+                if expected:
+                    print(f"   {written / expected * 100:5.1f} %"
+                          f"  {written / 1e6:8.1f} Mo", end="\r")
+
+        if expected and written != expected:
+            partial.unlink(missing_ok=True)
+            print(f"\n   ❌ Incomplet : {written} octets reçus sur {expected}")
+            return None
+
+        partial.replace(path)
+        print(f"\n   ✅ {written / 1e6:.1f} Mo")
+
         return {
-            'filename': filename,
-            'last_modified': resource.get('last_modified'),
-            'downloaded_at': datetime.now().isoformat(),
-            'size_bytes': downloaded
+            "filename": resource.filename,
+            "last_modified": resource.last_modified,
+            "downloaded_at": datetime.now().isoformat(),
+            "size_bytes": written,
         }
-        
-    except Exception as e:
-        print(f"   ❌ Erreur: {e}")
+
+    except Exception as error:
+        partial.unlink(missing_ok=True)
+        print(f"\n   ❌ Erreur : {error}")
         return None
 
 
-def download(STATE_FILE, DOWNLOAD_DIR, METEO_BASE_URL, METEO_DATASET_ID):
+def download(STATE_FILE, DOWNLOAD_DIR, METEO_BASE_URL, METEO_DATASET_ID,
+             resources: list[Resource] | None = None) -> list[Resource]:
     """
-    Synchronise les fichiers depuis l'API en téléchargeant uniquement ceux qui ont changé.
-
-    Compare la date 'last_modified' de chaque ressource avec l'état sauvegardé,
-    télécharge les fichiers nouveaux ou modifiés, puis met à jour l'état.
+    Synchronise le miroir local du jeu de données amont.
 
     Args:
-        BASE_URL (str):      URL de l'API retournant la liste des ressources.
-        STATE_FILE (str):   Chemin du fichier JSON de suivi des téléchargements.
-                            Créé automatiquement au premier appel.
-        DOWNLOAD_DIR (str): Dossier de destination pour les fichiers téléchargés.
-                            Créé automatiquement s'il n'existe pas.
+        STATE_FILE (str | Path):   fichier JSON de suivi, créé au premier appel.
+        DOWNLOAD_DIR (str | Path): dossier de destination, créé si absent.
+        METEO_BASE_URL (str):      racine de l'API data.gouv.fr.
+        METEO_DATASET_ID (str):    identifiant du jeu de données.
+        resources (list[Resource], optional): inventaire déjà lu. Sinon
+                                              l'API est interrogée.
 
     Returns:
-        list[str] | None: Noms des fichiers téléchargés avec succès,
-                          ou None si tout est déjà à jour.
-                          Ex: ['QUOT_SIM2_1958-1959.csv.gz', ...]
+        list[Resource]: les ressources de données effectivement téléchargées,
+                        années puis glissant. Liste vide si tout est à jour.
 
-    Notes:
-        - L'état est sauvegardé après chaque téléchargement réussi.
+    Raises:
+        RuntimeError: si l'inventaire amont ne ressemble plus à ce qui est
+                      attendu. Mieux vaut s'arrêter que produire une chronique
+                      tronquée en silence.
     """
-  
     tprint("download", "small")
 
-    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-    state = load_state(STATE_FILE)    
-    API_URL = METEO_BASE_URL + METEO_DATASET_ID + "/"
-    resources = get_resources(API_URL)
-    
-    to_download = []
-    up_to_date = []
-    
-    for resource in resources:
-        if has_changed(resource, state, DOWNLOAD_DIR):
-            to_download.append(resource)
-        else:
-            up_to_date.append(resource)
-    
-    print("ANALYSE")
-    print(f"\n   - {len(to_download)} fichier(s) à télécharger")
-    print(f"   - {len(up_to_date)} fichier(s) déjà à jour")
-    
+    Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)
+
+    if resources is None:
+        resources = list_resources(METEO_BASE_URL, METEO_DATASET_ID)
+
+    print("INVENTAIRE")
+    print(f"   → {describe(resources)}")
+
+    anomalies = check_inventory(resources)
+    if anomalies:
+        for anomalie in anomalies:
+            print(f"   ❌ {anomalie}")
+        raise RuntimeError("l'inventaire amont ne correspond plus au format attendu")
+
+    state = load_state(STATE_FILE)
+    to_download = [r for r in resources if has_changed(r, state, DOWNLOAD_DIR)]
+    volume = sum(r.size or 0 for r in to_download)
+
+    print(f"   → {len(to_download)} à télécharger ({volume / 1e9:.2f} Go), "
+          f"{len(resources) - len(to_download)} déjà à jour")
+
     if not to_download:
-        print("\n✨ Tous les fichiers sont à jour!")
-        return
+        print("\n✨ Tous les fichiers sont à jour")
+        return []
 
     print("\nTÉLÉCHARGEMENT")
-    
-    success = 0
-    failed = 0
-    downloaded_files = []
-    
+    downloaded, failed = [], []
     for i, resource in enumerate(to_download, 1):
         print(f"\n[{i}/{len(to_download)}]")
         result = download_file(resource, DOWNLOAD_DIR)
-        
         if result:
-            state[resource['id']] = result
+            state[resource.id] = result
             save_state(state, STATE_FILE)
-            success += 1
-            downloaded_files.append(Path(DOWNLOAD_DIR) / result['filename'])
+            downloaded.append(resource)
         else:
-            failed += 1
-            
+            failed.append(resource)
+
     print("\nRÉSUMÉ")
-    print(f"   - ✅ Réussis: {success}")
-    print(f"   - ❌ Échecs: {failed}")
-    print(f"   - 📁 Dossier: {os.path.abspath(DOWNLOAD_DIR)}")
+    print(f"   - ✅ Réussis : {len(downloaded)}")
+    print(f"   - ❌ Échecs : {len(failed)}")
+    for resource in failed:
+        print(f"        {resource.filename}")
+    print(f"   - 📁 Dossier : {os.path.abspath(DOWNLOAD_DIR)}")
 
-    downloaded_files = [f for f in downloaded_files if f.name.endswith('.csv.gz')]
-    return downloaded_files
-
+    data = [r for r in downloaded if r.is_data]
+    return sorted(data, key=lambda r: (r.kind == "rolling", r.year or 0))
