@@ -47,15 +47,18 @@ def clean_local(directory, keep: list[Path] | None = None) -> list[Path]:
     directory = Path(directory)
     protected = {Path(p).resolve() for p in (keep or [])}
 
-    groups: dict[str, list[dict]] = defaultdict(list)
+    # Grouped by (variable, version) and not by variable alone: during the
+    # transition both namings coexist, and a legacy file must never be removed
+    # because a file of the target naming happens to reach further.
+    groups: dict[tuple, list[dict]] = defaultdict(list)
     for path in directory.glob("*.nc"):
         parsed = parse_filename(path.name)
         if parsed:
-            groups[parsed["variable"]].append(
+            groups[(parsed["variable"], parsed["version"])].append(
                 {"path": path, "date_fin": int(parsed["date_fin"])})
 
     removed = []
-    for variable, entries in sorted(groups.items()):
+    for _, entries in sorted(groups.items(), key=lambda kv: str(kv[0])):
         for entry in _superseded(entries):
             if entry["path"].resolve() in protected:
                 continue

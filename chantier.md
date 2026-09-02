@@ -259,6 +259,14 @@ Repris tel quel pour l'instant, refondu ensuite. Les manques relevés :
 - [ ] purger les fichiers de sauvegarde `*~` du dossier de travail (ils sont
       déjà ignorés par git, mais ils encombrent)
 
+### Décidé après mesure
+
+- `decompress()` traite tous les fichiers d'un coup, ce qui fait cohabiter
+  environ 42 Go de CSV dans `01_data-raw/`. Le transformer en boucle par
+  fichier, décompresser puis découper puis supprimer, tient en une dizaine de
+  lignes dans `main.py`. À faire seulement si l'empreinte réelle gêne : la
+  chaîne linéaire est plus facile à reprendre là où elle s'est arrêtée.
+
 ## 4. Points ouverts
 
 - Le renommage du paquet Python en `sim2/` est cohérent avec `onde/` et

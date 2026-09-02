@@ -7,6 +7,8 @@ import requests
 from pathlib import Path
 from art import tprint
 
+from .sources import is_data_filename
+
 
 
 def decompress_file(gz_file, RAW_DIR):
@@ -42,7 +44,8 @@ def decompress(DOWNLOAD_DIR, RAW_DIR, downloaded_files=None):
 
     Path(RAW_DIR).mkdir(parents=True, exist_ok=True)    
     if downloaded_files is None:
-        downloaded_files = list(Path(DOWNLOAD_DIR).glob("*.csv.gz"))
+        downloaded_files = sorted(f for f in Path(DOWNLOAD_DIR).glob("*.csv.gz")
+                                  if is_data_filename(f.name))
         
     print("DÉCOMPRESSION")
     

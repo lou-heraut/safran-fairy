@@ -51,6 +51,17 @@ def _classify(filename: str) -> tuple[str, int | None]:
     return "other", None
 
 
+def is_data_filename(name: str) -> bool:
+    """
+    Dit si un nom de fichier est une source de données du format courant.
+
+    Les fichiers de l'ancien découpage par décennie ne sont plus servis en
+    amont et ne sont donc pas retéléchargeables : ils restent sur le disque
+    comme référence, et ce test les tient à l'écart de la chaîne.
+    """
+    return _classify(name)[0] in ("year", "rolling")
+
+
 def _filename_of(resource: dict) -> str:
     """The name the file takes on disk, read from its URL and not its title."""
     return resource.get("url", "").split("/")[-1].split("?")[0]
