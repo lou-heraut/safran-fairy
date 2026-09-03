@@ -245,26 +245,140 @@ que sur une variable, ce qui divise le reste par 26.
       republier
 - [ ] relancer le timer, surveiller trois exécutions quotidiennes
 
-### Phase 4, le catalogue STAC
+### Phase 4, le fichier lui-même
 
-Repris tel quel pour l'instant, refondu ensuite. Les manques relevés :
+C'est la phase au plus fort effet pour les utilisateurs, et elle a été chiffrée.
 
-- pas de `stac_extensions` déclarée, donc les champs ajoutés sont invisibles
-  aux clients
-- pas d'extension `datacube` : c'est le manque principal pour de la donnée
-  grillée, `cube:dimensions` est ce qui permet de savoir ce qu'un fichier
-  contient sans le télécharger
-- pas d'extension `projection` : EPSG:27572, forme 134 x 142, transformation
-- `unite`, `periode_agregation` et `doi` en champs libres, à remplacer par
-  l'extension `scientific` et les conventions CF
-- pas de `file:size` ni `file:checksum`
-- pas de `created` ni `updated`
-- `stac_version` 1.0.0, à passer en 1.1.0
-- catalogue racine déposé à la main, à générer
-- 26 sous-collections d'un item chacune une fois passé à un fichier par
-  variable : une collection unique de 26 items serait plus lisible
+**Le découpage interne du NetCDF est le pire possible pour l'usage dominant.**
+Mesuré sur `T_QUOT_SIM2_19580801-20260901.nc` : les blocs valent
+`[1, 134, 142]`, soit une carte complète par bloc. Extraire la chronique d'un
+seul point de grille oblige donc à décompresser les 24 869 blocs, c'est-à-dire
+tout le fichier, pour 99 Ko utiles. Deux découpages alternatifs produits avec
+`ncks --cnk_dmn` et mesurés sur les mêmes opérations :
 
-### Phase 5, hygiène du dépôt
+    découpage (time,y,x)   taille    chronique   carte     moyenne
+                                     1 point     1 date    sur 10x10
+    ------------------------------------------------------------------
+    1 x 134 x 142 (actuel)  470 Mo     8,81 s    0,02 s     8,71 s
+    365 x 32 x 32           425 Mo     0,68 s    0,15 s     2,31 s
+    2048 x 16 x 16          406 Mo     0,24 s    0,66 s     0,64 s
+
+Le cache disque était chaud pour les trois, ce qui minore l'avantage des bons
+découpages plutôt qu'il ne l'exagère. Les fichiers rechunkés sont en prime plus
+petits, de 10 à 14 %, les valeurs voisines dans le temps se comprimant mieux que
+les valeurs voisines dans l'espace.
+
+- [ ] adopter `365 x 32 x 32` : aucune opération ne dépasse 2,3 s, la chronique
+      d'un point est 13 fois plus rapide et le fichier 45 Mo plus léger. Le
+      découpage `2048 x 16 x 16` est meilleur encore pour les chroniques et les
+      moyennes de bassin, au prix d'une carte à 0,66 s ; à retenir si l'usage
+      hydrologique domine nettement. **À trancher.**
+- [ ] poser le découpage dans `convert.py` via `chunksizes`, et vérifier ce que
+      `ncrcat` en fait à l'assemblage : c'est lui qui écrit le fichier final.
+
+**Les conventions CF ne sont pas déclarées.** Le fichier ne porte ni
+`Conventions`, ni `standard_name`, ni `title`, ni `history`, ni `references`.
+C'est le point d'interopérabilité le plus simple à corriger et le plus rentable :
+sans `Conventions = "CF-1.10"` et sans `standard_name`, aucun outil générique ne
+sait que `T` est une température de l'air.
+
+- [ ] ajouter `Conventions`, `title`, `institution`, `source`, `history`,
+      `references` en attributs globaux
+- [ ] ajouter `standard_name` par variable là où le vocabulaire CF en fournit
+      un (`air_temperature`, `precipitation_amount`, `wind_speed`,
+      `relative_humidity`, `surface_snow_thickness`…), et laisser vide sinon
+      plutôt que d'en inventer
+- [ ] `cell_methods` pour dire ce qu'est l'agrégation quotidienne, aujourd'hui
+      seulement décrite en français libre dans `aggregation_period`
+- [ ] contrôler le résultat avec `cfchecker` et ajouter ce contrôle à `check.py`
+
+### Phase 5, le catalogue STAC
+
+Structurellement propre, catalogue racine puis collection puis sous-collections
+par variable, mais il ne déclare presque rien de ce qui le rendrait exploitable
+par un client. État des lieux, du plus rentable au moins :
+
+| Manque | Effet | FAIR |
+|---|---|---|
+| `stac_extensions` absent | tous les champs ajoutés sont invisibles aux clients, qui ne savent pas les interpréter | I |
+| extension `datacube` | c'est **le** manque principal pour de la donnée grillée : `cube:dimensions` et `cube:variables` disent la grille, le pas de temps, les unités et l'étendue sans télécharger le fichier | F, I |
+| extension `projection` | `proj:code`, `proj:shape`, `proj:transform` : le CRS n'existe aujourd'hui que dans le NetCDF | I |
+| extension `file` | `file:size` et `file:checksum` : aucune vérification d'intégrité possible après téléchargement | A, R |
+| extension `scientific` | `sci:doi` et `sci:citation` remplacent le champ libre `doi` | F, R |
+| extension `processing` | `processing:software`, `processing:datetime`, `processing:lineage` : dire de quelles ressources amont et de quelle version du code sort un fichier. C'est la traçabilité, aujourd'hui absente. | R |
+| `unite`, `periode_agregation` en champs libres | non standard, aucun client ne les lit | I |
+| `license: "etalab-2.0"` | n'est pas un identifiant SPDX ; STAC attend un SPDX, ou `"other"` accompagné d'un lien de licence | R |
+| `created` et `updated` absents | impossible de savoir depuis un client si la donnée a bougé | R |
+| `summaries` et `item_assets` absents sur la collection | un client ne peut pas résumer le contenu sans parcourir tous les items | F |
+| `stac_version` 1.0.0 | 1.1.0 est la version courante | I |
+| catalogue racine écrit à la main | il vit sur le S3 hors du code, dérive garantie | R |
+| 26 sous-collections d'un item | à un fichier par variable la hiérarchie ne sert plus ; une collection unique de 26 items serait plus lisible et plus standard | F |
+
+- [ ] déclarer les extensions et remplacer les champs libres
+- [ ] aplatir la hiérarchie une fois le nouveau nommage en place
+- [ ] générer le catalogue racine depuis le code
+- [ ] valider avec `stac-validator` et ajouter cette validation au pipeline,
+      au même titre que `check.py` pour les données
+- [ ] vérifier le rendu dans l'instance STAC Browser déjà déployée sur
+      `catalog.riverly-data-lake.inrae.fr`
+
+### Phase 6, efficacité et empreinte
+
+Empreinte mesurée sur une variable, extrapolée à 26 pour ce qui varie :
+
+    dossier            une variable    26 variables   rôle
+    ---------------------------------------------------------------------
+    00_data-download        9,44 Go         9,44 Go   permet de rejouer
+                                                      sans réseau
+    01_data-raw            35,15 Go        35,15 Go   inutile après le
+                                                      découpage
+    02_data-split           0,35 Go        ~9 Go      inutile après la
+                                                      conversion
+    03_data-convert         0,47 Go       ~12 Go      cache annuel, utile
+    04_data-output          0,47 Go       ~12,7 Go    publié
+
+Soit un pic de plus de 78 Go pendant un rebuild complet, dont 44 Go d'artefacts
+morts dès l'étape suivante.
+
+- [ ] **traiter fichier par fichier** : décompresser, découper, convertir, puis
+      supprimer le CSV et le Parquet. Le pic transitoire tombe d'environ 44 Go
+      à moins de 1 Go, et la chaîne devient reprenable là où elle s'est
+      arrêtée. Une dizaine de lignes dans `main.py`. La rejouabilité est
+      intacte : `00_data-download` garde les sources et `03_data-convert` le
+      cache annuel.
+- [ ] **ne pas reconstruire ni redéposer une sortie identique.** Le 3 septembre,
+      le glissant n'apportait aucun jour au-delà du fichier annuel : la sortie
+      aurait été identique à l'octet près, et le pipeline aurait tout de même
+      réécrit et renvoyé 12,7 Go. Règle simple : si le nom cible existe déjà et
+      qu'aucune de ses entrées n'est plus récente que lui, passer.
+- [ ] mesurer le rebuild complet des 26 variables. Le découpage domine, 4 min 43
+      sur une variable, mais le CSV n'est lu qu'une fois : le facteur ne sera
+      pas 26. Chiffre à établir, pas à supposer.
+- [ ] envisager de ne garder dans `01_data-raw` aucun fichier entre deux runs,
+      ce que la boucle par fichier fait naturellement.
+
+### Phase 7, code, sorties et documentation
+
+- [ ] **README à refondre.** Il décrit encore la stratégie à trois fichiers, le
+      découpage par décennie, `make run-merge`, `merge.py`, `upload.py`, un
+      `resources/safran_variables.csv` qui n'a jamais porté ce nom, et une URL
+      de catalogue sur l'ancien bucket `safran-fairy-data`. Sur le modèle des
+      dépôts voisins : ce que sont les données, les pièges d'analyse, les choix
+      techniques, comment relire en Python et en R.
+- [ ] **INSTALL.md** mentionne `INDEX_PATH`, clé supprimée.
+- [ ] **Sorties du pipeline.** Elles sont lisibles mais bavardes et sans
+      horodatage, ce qui rend le journal systemd difficile à exploiter après
+      coup : impossible de savoir combien de temps a pris une étape sans
+      recouper les dates de fichiers, ce que j'ai dû faire pour mesurer.
+      Passer à `logging` avec un horodatage, garder les messages en français,
+      et réserver les bannières `art` au mode interactif.
+- [ ] **Un résumé final chiffré** en fin de run : combien de fichiers, quel
+      volume, quelles variables, combien de temps, ce qui a été publié. C'est
+      ce qui manque pour surveiller le service sans lire tout le journal.
+- [ ] `pyproject.toml`, `CITATION.cff`, `AUTHORS.md`, version unique de vérité,
+      renommage du dépôt : voir la phase suivante.
+
+### Phase 8, hygiène du dépôt
 
 - [ ] renommer le dépôt en `get-data-meteofrance-sim2`, le paquet Python en
       `sim2/`, le script d'entrée en `sync_sim2.py`. « SAFRAN Fairy » reste le
@@ -302,6 +416,19 @@ Repris tel quel pour l'instant, refondu ensuite. Les manques relevés :
   À vérifier avant de s'en servir dans `check.py`.
 
 ## 5. Journal
+
+**2026-09-03, état des lieux.** Audit demandé sur le catalogue, l'efficacité,
+le code et la documentation, consigné en phases 4 à 8 ci-dessus. Deux mesures
+en ressortent, toutes deux inattendues et toutes deux chiffrées. Le découpage
+interne des NetCDF publiés est le pire possible pour l'usage dominant :
+extraire la chronique d'un point coûte 8,81 s et la décompression du fichier
+entier, contre 0,68 s avec un découpage `365 x 32 x 32` qui donne en prime un
+fichier 45 Mo plus léger. Et les fichiers ne déclarent pas les conventions CF,
+ce qui est le point d'interopérabilité le moins cher à corriger.
+
+Soldé au passage une dette que ma réécriture avait créée : quatre cibles du
+Makefile appelaient des options disparues, dont `run-all`. Le drapeau `--clean`
+est rétabli dans `main.py` comme opération de maintenance, hors de `--all`.
 
 **2026-09-03, fin de session.** Phase 0 terminée : purge du S3 passée, 132
 objets supprimés sur 264, catalogue STAC régénéré et vérifié, plus aucune

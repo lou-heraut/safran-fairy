@@ -185,6 +185,12 @@ documentation.
   les fichiers qui présentent un nom d'attribut inversé.
 - La grille de sortie est 134 x 142 pour 9 892 points réels. Les cases vides
   ne sont pas une erreur de conversion, le domaine SAFRAN n'est pas rectangulaire.
+- **Le découpage interne des NetCDF publiés vaut `[1, 134, 142]`**, une carte
+  complète par bloc. Extraire la chronique d'un point coûte donc la
+  décompression du fichier entier : 8,81 s pour 99 Ko utiles, contre 0,02 s
+  pour une carte. Ce n'est pas un choix, c'est le défaut de netCDF4 sur une
+  dimension temporelle illimitée. Correction chiffrée en phase 4 de
+  chantier.md, à ne pas confondre avec un réglage de compression.
 
 ## Vérifications après modification
 
