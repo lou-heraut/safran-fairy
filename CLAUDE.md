@@ -68,7 +68,6 @@ et maquettes ASCII sont au contraire bienvenus, directement dans le texte.
 - En-tête SPDX en tête de chaque fichier Python :
   `# SPDX-FileCopyrightText: 2026 Louis Héraut <louis.heraut@inrae.fr>` puis
   `# SPDX-License-Identifier: GPL-3.0-or-later`.
-  Ce n'est pas encore fait sur les fichiers existants, voir chantier.md phase 5.
 
 ## Environnement
 
@@ -85,9 +84,11 @@ netCDF4 ne le remplacent à ce volume.
 
 La configuration est scindée en deux : `config.json` (chemins, URL, bucket,
 versionné sous forme de `config.json.dist`) et `.env` (secrets et `MODE`,
-jamais versionné, gabarit dans `env.dist`). `MODE=prod` est ce qui autorise
-`main.py` à exécuter `main()` ; en `MODE=dev` le script se charge sans rien
-lancer, pour être piloté depuis un REPL.
+jamais versionné, gabarit dans `env.dist`). `MODE=dev` active seulement
+l'autoreload pour un pilotage depuis un REPL ; il n'empêche plus `main.py` de
+s'exécuter, comme c'était le cas avant, ce qui rendait un appel en ligne de
+commande silencieusement sans effet. Pour piloter depuis un REPL, importer le
+paquet plutôt que le script, comme chez les deux voisins.
 
 Tous les dossiers de données sont ignorés par git et se régénèrent.
 
@@ -147,8 +148,8 @@ documentation.
   `ETP`, écart maximum 1,1 mm, et **toutes les autres colonnes sont identiques
   au 1e-9 près**. La documentation confirme le passage à « formule de
   Penman-Monteith FAO-56 ». L'ETP actuellement publiée sur le S3 est donc
-  périmée, et `resources/safran-variables_2026-02-19.csv` porte encore
-  l'ancienne définition.
+  périmée jusqu'à la republication. La métadonnée est à jour dans
+  `resources/safran-variables_2026-09-03.csv`.
 - **Le schéma CSV, lui, n'a pas bougé** : mêmes colonnes, même ordre, même
   grille. `split.py` et `convert.py` n'ont pas à changer sur le fond.
 - Le nom de fichier ne porte plus aucune date. Toute la logique qui lisait la
