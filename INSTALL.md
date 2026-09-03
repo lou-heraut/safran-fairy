@@ -164,8 +164,21 @@ depuis les CSV déjà téléchargés, sans repasser par le réseau. Supprimer au
 ```bash
 cd /opt/safran-fairy
 sudo git pull
-sudo .python_env/bin/pip install --upgrade -r requirements.txt
+sudo .python_env/bin/python -m pip install --upgrade -r requirements.txt
 ```
+
+`config-prod.json` n'est pas versionné, donc `git pull` ne le met pas à jour :
+une clé ajoutée au code n'y arrive pas toute seule. Le pipeline refuse de
+démarrer et dit laquelle manque, mais autant vérifier avant :
+
+```bash
+diff <(python3 -c "import json;print('\n'.join(sorted(json.load(open('config.json.dist')))))") \
+     <(python3 -c "import json;print('\n'.join(sorted(json.load(open('config-prod.json')))))")
+```
+
+Vérifier aussi que `METADATA_VARIABLES_FILE` et `METADATA_GRID_FILE` désignent
+des fichiers qui existent dans `resources/` : ils sont datés et changent de nom
+quand leur contenu change.
 
 Une modification qui change le contenu des fichiers produits, comme le découpage
 interne ou les métadonnées, demande de reconstruire : supprimer

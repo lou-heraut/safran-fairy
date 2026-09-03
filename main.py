@@ -23,8 +23,25 @@ from dotenv import load_dotenv
 
 
 def load_config(config_file):
+    """
+    Charge la configuration, et refuse une configuration en retard sur le gabarit.
+
+    `config.json` n'est pas versionné, donc une mise à jour du dépôt ne le met
+    pas à jour : une clé ajoutée au code se traduisait par une KeyError nue au
+    démarrage, sans dire ni laquelle ni où la prendre.
+    """
     with open(config_file) as f:
-        return json.load(f)
+        config = json.load(f)
+
+    gabarit = Path("config.json.dist")
+    if gabarit.exists():
+        manquantes = sorted(set(json.loads(gabarit.read_text())) - set(config))
+        if manquantes:
+            raise SystemExit(
+                f"\n❌ {config_file} est en retard sur {gabarit}.\n"
+                f"   Clé(s) manquante(s) : {', '.join(manquantes)}\n"
+                f"   Les reprendre depuis {gabarit} et relancer.\n")
+    return config
 
 
 def print_welcome(welcome_file):
