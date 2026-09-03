@@ -80,9 +80,42 @@ Aucun `glob` ne décide plus de rien.
       du service, y compris dans le préfixe S3 et les identifiants STAC.
 - [ ] `pyproject.toml` à la place de `requirements.txt`, avec `SCRIPT_VERSION`
       comme version unique de vérité, propagée à `CITATION.cff`.
-- [ ] passer les sorties du pipeline à `logging` avec horodatage, et un résumé
-      final chiffré. Aujourd'hui il faut recouper les dates de fichiers pour
-      savoir combien de temps a pris une étape.
+- [ ] **refondre les affichages.** Ils ont été écrits quand chaque étape ne
+      tournait qu'une fois : la bannière ASCII marquait alors une vraie
+      transition et le bloc `RÉSUMÉ` résumait vraiment quelque chose. Depuis
+      que le traitement boucle fichier par fichier, `tprint` est appelé 210
+      fois et chaque `RÉSUMÉ` porte sur un seul fichier. Un run complet produit
+      environ 10 000 lignes, dont 13 % de bannières, et l'information utile ne
+      se distingue plus du décor.
+
+      Quatre défauts, par ordre de gêne :
+
+      - les bannières annoncent une transition qui n'en est plus une, et
+        suggèrent une progression linéaire alors qu'on boucle ;
+      - les blocs `RÉSUMÉ` résument un fichier et répètent un chemin qui ne
+        change pas ;
+      - la progression du téléchargement écrit avec `end="\r"` sans tester
+        `isatty()`, d'où les ` 0.0 Mo` orphelins dans un journal ou un fichier ;
+      - **rien n'est horodaté**, donc on ne peut pas savoir en relisant quelle
+        étape a coûté du temps. C'est le manque le plus cher à l'usage pour un
+        service qui tourne la nuit.
+
+      Direction : rendre la structure du texte fidèle à celle de l'exécution.
+      Une bannière par run, une phase par phase réelle, **une ligne par fichier**
+      dans la boucle, et un bilan calculé sur l'ensemble à la fin de la phase.
+
+          14:02:31  [12/70] QUOT_SIM2_2000   512 Mo -> 26 var -> 26 nc   12,4 s
+          14:02:56  [14/70] QUOT_SIM2_2002   déjà converti, ignoré
+
+      `logging` donne l'horodatage et permet de reléguer le détail en `DEBUG`,
+      récupérable avec un `--verbose`. `isatty()` réserve la progression animée
+      au terminal.
+
+      Touche six modules mais aucune logique de traitement. **À faire après la
+      republication**, pas pendant.
+- [ ] la conversion annonce `142x134 points de grille` puis
+      `grille complétée : 1 colonne` : les deux sont vrais, mais dans cet ordre
+      le premier chiffre est corrigé par la ligne suivante.
 
 ### Améliorations identifiées, non engagées
 
