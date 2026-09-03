@@ -89,11 +89,16 @@ installe le timer et le démarre. L'exécution est quotidienne à 02:00 UTC.
 ## Lancer
 
 ```bash
-make run-all            # la chaîne complète
-make run-as-service     # la même, comme le ferait systemd
+make run-all            # la chaîne complète, publication comprise
+make run-process        # télécharge et traite, sans rien publier
+make run-as-service     # comme le ferait systemd
 ```
 
-Chaque étape s'exécute aussi seule, ce qui sert à reprendre ou à déboguer :
+`run-process` est celle à utiliser quand on veut regarder le résultat avant de
+le mettre en ligne, typiquement après une mise à jour qui change le contenu des
+fichiers produits.
+
+Chaque étape s'exécute aussi seule, pour reprendre ou déboguer :
 
 ```bash
 make run-download run-decompress run-split run-convert run-build
@@ -102,11 +107,10 @@ make run-upload run-ui
 make run-clean          # purge les versions périmées, local et S3
 ```
 
-Pour un essai rapide, `--variables` restreint le traitement et divise le coût
-par 26 :
+`VARIABLES` restreint le traitement et divise le coût d'un essai par 26 :
 
 ```bash
-.python_env/bin/python main.py --all --variables T
+make run-process VARIABLES="T TINF_H"
 ```
 
 ## Reprendre un run interrompu

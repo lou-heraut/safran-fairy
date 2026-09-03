@@ -1,6 +1,7 @@
 .PHONY: help install install-prod install-service uninstall-service update \
         run-all run-as-service run-setup \
-        run-download run-decompress run-split run-convert run-build run-check run-upload run-ui run-clean \
+        run-process run-download run-decompress run-split run-convert run-build \
+        run-check run-upload run-ui run-clean \
         service-stop service-restart service-restart-timer service-status service-logs service-logs-last-run \
         data-hard-clean data-hard-clean-all data-stats
 
@@ -10,6 +11,10 @@ VENV := .python_env
 BIN := $(VENV)/bin
 PIP := $(BIN)/pip
 PYTHON_VENV := $(BIN)/python
+RUN := sudo -u safran-fairy $(PYTHON_VENV) main.py
+
+# Restreindre à quelques variables : make run-process VARIABLES="T TINF_H"
+VAR_OPT := $(if $(VARIABLES),--variables $(VARIABLES))
 
 # Couleurs
 GREEN  := \033[0;32m
@@ -67,9 +72,13 @@ update: ## Met à jour le projet depuis git
 
 # ─── PIPELINE ────────────────────────────────────────────────────────────────
 
-run-all: ## Exécute le pipeline complet (dev)
-	@echo "$(GREEN)Exécution du pipeline complet...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --all
+run-all: ## Exécute la chaîne complète, publication comprise
+	@echo "$(GREEN)Exécution de la chaîne complète...$(NC)"
+	$(RUN) --all $(VAR_OPT)
+
+run-process: ## Télécharge et traite, sans rien publier
+	@echo "$(GREEN)Traitement sans publication...$(NC)"
+	$(RUN) --download --decompress --split --convert --build --check $(VAR_OPT)
 
 run-as-service: ## Exécute comme le ferait le service systemd
 	@echo "$(GREEN)Exécution du pipeline complet par le service...$(NC)"
@@ -77,43 +86,43 @@ run-as-service: ## Exécute comme le ferait le service systemd
 
 run-setup: ## Configure le bucket S3 (policy + CORS) - une seule fois
 	@echo "$(GREEN)Configuration du bucket S3...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --setup
+	$(RUN) --setup
 
 run-download: ## Télécharge les nouvelles données
 	@echo "$(GREEN)Téléchargement des données...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --download
+	$(RUN) --download
 
 run-decompress: ## Décompresse les fichiers téléchargés
 	@echo "$(GREEN)Décompression des données...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --decompress
+	$(RUN) --decompress
 
 run-split: ## Découpe les CSV par variable
 	@echo "$(GREEN)Découpage des données...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --split
+	$(RUN) --split $(VAR_OPT)
 
 run-convert: ## Convertit en NetCDF
 	@echo "$(GREEN)Conversion en NetCDF...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --convert
+	$(RUN) --convert $(VAR_OPT)
 
 run-build: ## Assemble une chronique continue par variable
 	@echo "$(GREEN)Assemblage des chroniques...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --build
+	$(RUN) --build $(VAR_OPT)
 
 run-check: ## Contrôle les fichiers de sortie sans rien publier
 	@echo "$(GREEN)Contrôle des sorties...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --check
+	$(RUN) --check $(VAR_OPT)
 
 run-upload: ## Upload les données sur S3
 	@echo "$(GREEN)Upload sur S3...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload
+	$(RUN) --upload
 
 run-ui: ## Génère et uploade le catalogue STAC
 	@echo "$(GREEN)Mise à jour du catalogue STAC...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --ui
+	$(RUN) --ui
 
 run-clean: ## Nettoie les anciennes versions (local + S3)
 	@echo "$(GREEN)Nettoyage des anciennes versions...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --clean
+	$(RUN) --clean
 
 
 # ─── SERVICE ─────────────────────────────────────────────────────────────────
