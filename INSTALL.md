@@ -50,7 +50,6 @@ sudo nano config-prod.json
 Remplir avec vos paramètres pour la prod, en particulier :
 ```json
 "STATE_FILE": "/var/lib/safran-fairy/download_state.json",
-"INDEX_PATH": "/var/lib/safran-fairy/data-access.html",
 "DOWNLOAD_DIR": "/var/lib/safran-fairy/00_data-download",
 "RAW_DIR": "/var/lib/safran-fairy/01_data-raw",
 "SPLIT_DIR": "/var/lib/safran-fairy/02_data-split",

@@ -274,17 +274,25 @@ petits, jusqu'à 16 %, les valeurs voisines dans le temps se comprimant mieux
 que les valeurs voisines dans l'espace : ce n'est pas un arbitrage vitesse
 contre taille, on gagne des deux côtés.
 
-- [ ] adopter **`2048 x 16 x 16`**, soit 5,6 ans empilés sur une tuile de
-      128 km, 2,1 Mo par pavé décompressé. L'usage visé est la moyenne sur
-      bassin dans le temps, et le gain y sature au-delà : aller jusqu'à
-      `24869 x 8 x 8` fait gagner 0,10 s sur un grand bassin et coûte 6,5 s sur
-      la lecture d'une carte. À l'inverse `365 x 32 x 32` laisse un grand
-      bassin à 2,35 s, ses tuiles de 256 km étant trop grosses pour ne pas être
-      décompressées quatre fois.
+- [x] **`128 x 16 x 16` adopté**, posé dans `convert.py` et hérité tel quel par
+      le fichier assemblé, `ncrcat` reprenant le découpage de sa première
+      entrée. C'est la **tuile spatiale qui compte, pas la profondeur
+      temporelle** : à tuiles de 16 x 16, une profondeur de 128 donne les mêmes
+      temps sur les chroniques et les bassins qu'une profondeur de 2048, et
+      rend les cartes onze fois plus rapides.
+
+          découpage         taille   1 point  bassin 5x5  bassin 20x20   1 carte
+          ---------------------------------------------------------------------
+          1 x 134 x 142     470 Mo    8,85 s      8,70 s        8,75 s    0,01 s
+          128 x 16 x 16     422 Mo    0,24 s      0,17 s        0,68 s    0,06 s
+          2048 x 16 x 16    406 Mo    0,24 s      0,17 s        0,66 s    0,66 s
+
+      La profondeur est une constante et non la longueur de l'année, pour que
+      le découpage du fichier final ne dépende pas de l'ordre des entrées.
+      Forcer le découpage sur `ncrcat` avec `--cnk_dmn` a été essayé : il n'a
+      pas rendu la main en deux minutes sur trois fichiers, piste abandonnée.
 - [ ] ne pas chercher à optimiser la moyenne sur la France entière : elle lit
       forcément tout le fichier, environ 11 s quel que soit le découpage.
-- [ ] poser le découpage dans `convert.py` via `chunksizes`, et vérifier ce que
-      `ncrcat` en fait à l'assemblage : c'est lui qui écrit le fichier final.
 
 **Les conventions CF ne sont pas déclarées.** Le fichier ne porte ni
 `Conventions`, ni `standard_name`, ni `title`, ni `history`, ni `references`.
@@ -292,14 +300,26 @@ C'est le point d'interopérabilité le plus simple à corriger et le plus rentab
 sans `Conventions = "CF-1.10"` et sans `standard_name`, aucun outil générique ne
 sait que `T` est une température de l'air.
 
-- [ ] ajouter `Conventions`, `title`, `institution`, `source`, `history`,
-      `references` en attributs globaux
-- [ ] ajouter `standard_name` par variable là où le vocabulaire CF en fournit
-      un (`air_temperature`, `precipitation_amount`, `wind_speed`,
-      `relative_humidity`, `surface_snow_thickness`…), et laisser vide sinon
-      plutôt que d'en inventer
-- [ ] `cell_methods` pour dire ce qu'est l'agrégation quotidienne, aujourd'hui
-      seulement décrite en français libre dans `aggregation_period`
+- [x] `Conventions`, `title`, `history` et `references` posés en attributs
+      globaux, `institution` et `source` y étaient déjà.
+- [x] `standard_name` et `cell_methods` par variable, dans trois colonnes
+      ajoutées à `resources/safran-variables_2026-09-03.csv`. Les noms ont été
+      **vérifiés contre la table CF officielle**, version 94 du 9 juin 2026,
+      téléchargée et interrogée, pas écrits de mémoire. 18 variables sur 26 en
+      reçoivent un.
+- [x] `units` porte désormais la forme udunits, que CF exige : `degC` et non
+      `°C`, qui n'est pas analysable. Le libellé français reste dans
+      `long_name` et la forme d'origine dans la colonne `unite` du CSV.
+- [x] provenance rétablie sur le fichier assemblé : `ncrcat` héritant des
+      attributs de sa première entrée, le fichier publié annonçait venir du
+      seul Parquet de 1958. `build.py` réécrit `history` et `source_files`.
+- [ ] les 8 variables sans `standard_name` sont celles dont l'unité en
+      millimètres n'est pas convertible vers l'unité canonique CF, en
+      kilogrammes par mètre carré : ETP, EVAP, PE, DRAINC, RUNC, ECOULEMENT,
+      plus SWI et SSWI_10J qui n'ont pas d'équivalent. Les nommer imposerait
+      d'écrire `units = "kg m-2"` là où l'utilisateur attend des millimètres,
+      ce qui est exact physiquement, 1 mm d'eau valant 1 kg m-2, mais visible.
+      **À trancher.**
 - [ ] contrôler le résultat avec `cfchecker` et ajouter ce contrôle à `check.py`
 
 ### Phase 5, le catalogue STAC

@@ -21,8 +21,10 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+import netCDF4
 
 import pandas as pd
 import xarray as xr
@@ -68,6 +70,22 @@ def inventory(CONVERT_DIR) -> dict[str, dict]:
 def _last_day(path: Path) -> pd.Timestamp:
     with xr.open_dataset(path) as ds:
         return pd.Timestamp(ds.time.max().values)
+
+
+def _stamp_provenance(path: Path, years: list[int], tail: Path | None) -> None:
+    """
+    Rewrite the global attributes ncrcat inherited from its first input.
+
+    Left alone, the assembled file claims to come from the 1958 Parquet alone,
+    which is a false provenance statement on the very file that gets published.
+    """
+    source = f"fichiers annuels {min(years)} à {max(years)}"
+    if tail is not None:
+        source += ", prolongés par la fenêtre glissante de 60 jours"
+    with netCDF4.Dataset(path, "a") as ds:
+        ds.setncattr("history", f"{datetime.now(timezone.utc):%Y-%m-%dT%H:%M:%SZ} : "
+                                f"assemblé par safran-fairy depuis les {source}")
+        ds.setncattr("source_files", source)
 
 
 def _bounds(path: Path) -> tuple[str, str]:
@@ -128,6 +146,7 @@ def build_variable(variable: str, entry: dict, OUTPUT_DIR: Path) -> Path:
     if tail:
         tail.unlink(missing_ok=True)
 
+    _stamp_provenance(tmp, sorted(years), tail)
     date_debut, date_fin = _bounds(tmp)
     output = OUTPUT_DIR / build_filename(variable, date_debut, date_fin)
     tmp.replace(output)
