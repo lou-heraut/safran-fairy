@@ -112,6 +112,18 @@ dans un SIG. Ils ont tous été constatés avec `gdalinfo` et `terra`.
   pyproj. Ils valaient la chaîne `EPSG:27572`, que GDAL essaie de lire comme du
   WKT, d'où le `ERROR 1: missing [` et une couche sans système de coordonnées.
 
+### La grille de référence
+
+- La grille fait autorité dans `coordonnees_grille_safran_lambert-2-etendu.csv`,
+  versionné sous `resources/safran-grille_<date>.csv`, et **jamais dans les
+  shapefiles**. `SIM2.shp` n'a que 8 813 des 9 892 points, Corse absente, et
+  `SHP_SIM_FRANCE.shp` en a 8 981 : ce sont des contours de la France, pas la
+  grille de calcul. `script_create_grid.R` part donc du CSV.
+- Contrôle croisé qui doit rester vrai : les 9 892 points du GeoPackage tombent
+  tous dans une maille renseignée du NetCDF, et le NetCDF en compte exactement
+  9 892. Les deux emprises coïncident, 56 000 à 1 200 000 en x et 1 613 000 à
+  2 685 000 en y.
+
 ### Le catalogue
 
 - Les items publiés avant la refonte étaient **tous invalides**, sur

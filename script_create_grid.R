@@ -1,39 +1,39 @@
-download_dir = "00_data-download"
-shp_file = "SIM2.shp"
-output_dir = "resources"
-output_file = "grid-SIM.gpkg"
+# SPDX-FileCopyrightText: 2026 Louis Héraut <louis.heraut@inrae.fr>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Construit la grille SAFRAN en points et en mailles, depuis le fichier de
+# coordonnées publié par Météo-France.
+#
+# La source est ce fichier et non SIM2.shp : le shapefile est un contour de la
+# France qui ne couvre que 8 813 des 9 892 points de la grille, Corse comprise.
+# Le fichier de coordonnées, lui, correspond exactement aux données.
 
-points = sf::st_read(file.path(download_dir, shp_file))
-# sf::st_crs(points) = 27572
-points = sf::st_transform(points, 27572)
-points = sf::st_geometry(points)*100
-points = sf::st_sf(geometry=points, crs=27572)
-coords = sf::st_coordinates(points)
+library(sf)
 
-grid_list = lapply(1:nrow(coords), function(i) {
-    grid = 8000
-    x = coords[i,1]
-    y = coords[i,2]
-    sf::st_polygon(list(rbind(
-            c(x-grid/2, y-grid/2),
-            c(x+grid/2, y-grid/2),
-            c(x+grid/2, y+grid/2),
-            c(x-grid/2, y+grid/2),
-            c(x-grid/2, y-grid/2)
-        )))
-})
+grille_csv <- "resources/safran-grille_2026-09-03.csv"
+sortie <- "resources/grid-SIM.gpkg"
+maille <- 8000  # mètres
 
-grid = sf::st_sf(points,
-                 geometry=sf::st_sfc(grid_list, crs=sf::st_crs(points)))
+coords <- read.csv2(grille_csv, dec = ",")
+names(coords) <- c("lambx_hm", "lamby_hm", "lat", "lon")
+coords$x <- coords$lambx_hm * 100
+coords$y <- coords$lamby_hm * 100
 
-sf::st_write(points, file.path(output_dir, output_file),
-             layer="points", delete_layer=TRUE)
-sf::st_write(grid, file.path(output_dir, output_file),
-             layer="grid-cells", delete_layer=TRUE)
+points <- st_as_sf(coords[, c("x", "y", "lat", "lon")],
+                   coords = c("x", "y"), crs = 27572, remove = FALSE)
 
+cellules <- st_sf(
+    st_drop_geometry(points),
+    geometry = st_sfc(lapply(seq_len(nrow(points)), function(i) {
+        x <- points$x[i]; y <- points$y[i]
+        st_polygon(list(rbind(
+            c(x - maille/2, y - maille/2), c(x + maille/2, y - maille/2),
+            c(x + maille/2, y + maille/2), c(x - maille/2, y + maille/2),
+            c(x - maille/2, y - maille/2))))
+    }), crs = 27572))
 
-## GET BBOX __________________________________________________________
-grid = sf::st_read(file.path(output_dir, output_file))
-grid_wgs84 = sf::st_transform(grid, 4326)
-bbox = sf::st_bbox(grid_wgs84)
-print(bbox)
+st_write(points, sortie, layer = "points", delete_layer = TRUE, quiet = TRUE)
+st_write(cellules, sortie, layer = "grid-cells", delete_layer = TRUE, quiet = TRUE)
+
+cat(nrow(points), "points écrits dans", sortie, "\n")
+cat("emprise :", paste(round(st_bbox(cellules)), collapse = " "), "\n")
