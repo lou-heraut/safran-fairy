@@ -109,6 +109,33 @@ def download_file(resource: Resource, DOWNLOAD_DIR) -> dict | None:
         return None
 
 
+def remove_orphans(resources: list[Resource], DOWNLOAD_DIR) -> list[Path]:
+    """
+    Supprime les fichiers locaux que l'amont ne publie plus.
+
+    Le dossier est un miroir du dépôt distant : un fichier qui n'y correspond
+    plus n'a aucune chance d'être relu, et sans cela il s'accumule à chaque
+    recomposition. Le découpage par décennie de juillet 2026 avait ainsi laissé
+    8,4 Go inertes.
+
+    N'est appelée qu'après le contrôle d'inventaire : si l'amont renvoyait une
+    liste incomplète, on refuserait de continuer bien avant d'arriver ici.
+    """
+    attendus = {r.filename for r in resources}
+    orphelins = [f for f in Path(DOWNLOAD_DIR).glob("*")
+                 if f.is_file() and f.name not in attendus]
+    if not orphelins:
+        return []
+
+    poids = sum(f.stat().st_size for f in orphelins)
+    print(f"\nNETTOYAGE\n   → {len(orphelins)} fichier(s) que l'amont ne publie "
+          f"plus, {poids / 1e9:.2f} Go")
+    for f in orphelins:
+        print(f"   🗑️  {f.name}")
+        f.unlink()
+    return orphelins
+
+
 def download(STATE_FILE, DOWNLOAD_DIR, METEO_BASE_URL, METEO_DATASET_ID,
              resources: list[Resource] | None = None) -> list[Resource]:
     """
@@ -146,6 +173,8 @@ def download(STATE_FILE, DOWNLOAD_DIR, METEO_BASE_URL, METEO_DATASET_ID,
         for anomalie in anomalies:
             print(f"   ❌ {anomalie}")
         raise RuntimeError("l'inventaire amont ne correspond plus au format attendu")
+
+    remove_orphans(resources, DOWNLOAD_DIR)
 
     state = load_state(STATE_FILE)
     to_download = [r for r in resources if has_changed(r, state, DOWNLOAD_DIR)]

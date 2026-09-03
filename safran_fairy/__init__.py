@@ -16,7 +16,7 @@ Typical use:
 from .sources import (Resource, check_inventory, data_resources, describe,
                       is_data_filename,
                       list_resources)
-from .download import download
+from .download import download, remove_orphans
 from .decompress import decompress
 from .split import split
 from .convert import convert
@@ -31,7 +31,7 @@ from .catalog import generate_stac_catalog
 __all__ = [
     "Resource", "list_resources", "data_resources", "describe",
     "check_inventory", "is_data_filename",
-    "download", "decompress", "split", "convert", "build", "check",
+    "download", "remove_orphans", "decompress", "split", "convert", "build", "check",
     "check_file", "inventory",
     "clean_local", "clean_s3",
     "parse_filename", "build_filename",

@@ -71,6 +71,10 @@ dans les messages de commit ; ici, seulement de quoi ne pas défaire le travail.
 - Le glissant et le fichier annuel sont **d'accord au bit près** sur leur
   recouvrement. La règle qui fait primer l'annuel est un départage prudent, pas
   une correction.
+- **`00_data-download` est un miroir exact** : ce que l'amont ne publie plus est
+  supprimé au début de chaque téléchargement. Sans cela les fichiers orphelins
+  s'accumulent à chaque recomposition, comme les 8,4 Go laissés par le découpage
+  par décennie. La suppression n'a lieu qu'après le contrôle d'inventaire.
 - Tout ce qui décrit la forme du dépôt amont vit dans `sources.py`, et nulle
   part ailleurs. `check_inventory()` bloque si elle change : produire une
   chronique tronquée en silence serait pire qu'un arrêt.

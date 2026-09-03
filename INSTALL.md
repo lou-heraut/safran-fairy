@@ -33,6 +33,10 @@ d'intermédiaires morts.
 Le réseau : 9,4 Go au premier run, puis une vingtaine de mégaoctets par jour, et
 137 Mo par année révisée deux fois par mois.
 
+Le dossier des sources est tenu comme un miroir exact du dépôt distant : les
+fichiers que Météo-France ne publie plus sont supprimés au début de chaque
+téléchargement, ce qui évite qu'ils s'accumulent à la prochaine recomposition.
+
 ## Installation
 
 ```bash
