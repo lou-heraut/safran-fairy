@@ -210,22 +210,41 @@ def build_collection(items, variables_meta, collection_id, urls, temporel) -> di
     }
 
 
-def check_root_catalog(urls, s3, S3_BUCKET):
+def build_root_catalog(catalog_id, urls, titre_collection, existant=None) -> dict:
     """
-    Vérifie que le catalogue racine référence bien cette collection.
+    Le catalogue racine du bucket, point d'entrée de tout le reste.
 
-    Il n'est pas regénéré : il est partagé avec les autres jeux du data lake, et
-    l'écrire depuis ce dépôt effacerait leurs liens.
+    Les liens « child » qui ne sont pas les nôtres sont conservés tels quels :
+    le bucket n'héberge aujourd'hui que ce jeu, mais s'il en accueillait un
+    autre, le regénérer d'ici ne doit pas l'effacer.
     """
-    cle = "stac-data/catalog.json"
+    autres = [l for l in (existant or {}).get("links", [])
+              if l.get("rel") == "child" and l.get("href") != urls["collection"]]
+    return {
+        "type": "Catalog",
+        "stac_version": STAC_VERSION,
+        "id": catalog_id,
+        "title": "RiverLy Data Lake",
+        "description": (
+            "Catalogue des jeux de données hydrologiques et climatiques mis à "
+            "disposition par l'unité de recherche RiverLy d'INRAE."),
+        "links": [
+            {"rel": "root", "href": urls["catalog"], "type": "application/json"},
+            {"rel": "self", "href": urls["catalog"], "type": "application/json"},
+            {"rel": "child", "href": urls["collection"],
+             "type": "application/json", "title": titre_collection},
+            *autres,
+        ],
+    }
+
+
+def read_root_catalog(s3, S3_BUCKET):
+    """Le catalogue racine en ligne, ou None s'il n'existe pas encore."""
     try:
-        racine = json.loads(s3.get_object(Bucket=S3_BUCKET, Key=cle)["Body"].read())
+        return json.loads(
+            s3.get_object(Bucket=S3_BUCKET, Key="stac-data/catalog.json")["Body"].read())
     except Exception:
-        print(f"   ⚠️  catalogue racine introuvable ({cle})")
-        return
-    if not any(l.get("href") == urls["collection"] for l in racine.get("links", [])):
-        print(f"   ⚠️  le catalogue racine ne pointe pas vers {urls['collection']}")
-        print("       ajouter un lien « child » vers cette collection, à la main")
+        return None
 
 
 def generate_stac_catalog(CATALOG_DIR,
@@ -306,24 +325,26 @@ def generate_stac_catalog(CATALOG_DIR,
                 max(i["properties"]["end_datetime"] for i in items))
     collection = build_collection(items, var_meta, collection_id, urls, temporel)
 
+    racine = build_root_catalog(S3_BUCKET, urls, collection["title"],
+                                read_root_catalog(s3, S3_BUCKET))
+
+    # L'arborescence locale reproduit celle du bucket, de sorte que la
+    # publication soit une recopie et que ce qui traîne se repère au même
+    # endroit des deux côtés.
     catalog_dir = Path(CATALOG_DIR)
-    items_dir = catalog_dir / "items"
+    items_dir = catalog_dir / dataset / "items"
     items_dir.mkdir(parents=True, exist_ok=True)
-    # Le catalogue décrit le bucket : ce qui n'y est plus ne doit pas subsister.
-    for ancien in items_dir.glob("*.json"):
+    for ancien in catalog_dir.rglob("*.json"):
         ancien.unlink()
 
     ecrits = []
-    for item in items:
-        chemin = items_dir / f"{item['id']}.json"
-        chemin.write_text(json.dumps(item, ensure_ascii=False, indent=2))
+    for objet, chemin in ([(racine, catalog_dir / "catalog.json"),
+                           (collection, catalog_dir / dataset / "collection.json")]
+                          + [(i, items_dir / f"{i['id']}.json") for i in items]):
+        chemin.write_text(json.dumps(objet, ensure_ascii=False, indent=2))
         ecrits.append(chemin)
-    chemin = catalog_dir / "collection.json"
-    chemin.write_text(json.dumps(collection, ensure_ascii=False, indent=2))
-    ecrits.append(chemin)
 
     avec_empreinte = sum(1 for f in retenus.values() if f.get("checksum"))
-    print(f"✅ catalogue STAC {STAC_VERSION} : 1 collection, {len(items)} item(s), "
-          f"{avec_empreinte} empreinte(s)")
-    check_root_catalog(urls, s3, S3_BUCKET)
+    print(f"✅ catalogue STAC {STAC_VERSION} : 1 catalogue racine, 1 collection, "
+          f"{len(items)} item(s), {avec_empreinte} empreinte(s)")
     return ecrits

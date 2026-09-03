@@ -401,9 +401,15 @@ l'avait vu parce que STAC Browser est tolérant.
       SPDX et STAC n'acceptant que ceux-là ou `"other"`.
 - [x] validation dans le pipeline : `stac-valid batch` passe sur 53 fichiers
       sur 53, extensions comprises. `stac_valid` est en dépendance facultative.
-- [x] le catalogue racine n'est **pas** regénéré, il est partagé avec les autres
-      jeux du data lake et l'écrire d'ici effacerait leurs liens. Le code
-      vérifie qu'il référence bien la collection et prévient sinon.
+- [x] le catalogue racine **est** regénéré. J'avais d'abord supposé qu'il était
+      partagé avec d'autres jeux du data lake ; vérification faite, le bucket
+      n'héberge que celui-ci. Il passe donc en 1.1.0 et gagne le lien `root`
+      qui lui manquait. Par précaution, les liens `child` qui ne sont pas les
+      nôtres sont conservés tels quels : si un autre jeu arrive un jour, le
+      regénérer d'ici ne l'effacera pas.
+- [x] l'arborescence locale du catalogue reproduit celle du bucket, de sorte
+      que la publication soit une recopie et que ce qui traîne se repère au
+      même endroit des deux côtés.
 - [x] les objets de catalogue devenus obsolètes sont retirés du bucket à la
       publication, sans quoi l'ancienne arborescence par variable laisserait 78
       objets orphelins.

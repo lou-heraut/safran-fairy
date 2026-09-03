@@ -104,9 +104,8 @@ safran-sync.service           ExecStart .python_env/bin/python main.py --all
 
 Le bucket est `riverly-data-lake` sur `https://s3-data.meso.umontpellier.fr`,
 avec deux préfixes : `data/safran-fairy/` pour les NetCDF et
-`stac-data/safran-fairy/` pour le catalogue. Le catalogue racine
-`stac-data/catalog.json` n'est **pas** généré par le pipeline, il a été déposé à
-la main et le code se contente d'y faire référence.
+`stac-data/safran-fairy/` pour le catalogue, plus le catalogue racine
+`stac-data/catalog.json`. Tout le catalogue est généré par le pipeline.
 
 Le bucket est en lecture publique par policy, mais le `ListObjects` anonyme est
 refusé : pour savoir ce qui est publié sans les clés, passer par le catalogue
@@ -241,12 +240,15 @@ Une collection, un item par fichier publié, en STAC 1.1.0, avec les extensions
 depuis le bucket et non depuis le dossier de sortie : **il décrit ce qui est
 réellement en ligne**.
 
-Le catalogue racine `stac-data/catalog.json` n'est pas regénéré. Il est partagé
-avec les autres jeux du data lake, et l'écrire depuis ce dépôt effacerait leurs
-liens. Le code vérifie qu'il référence la collection et prévient sinon.
+Le catalogue racine `stac-data/catalog.json` est regénéré lui aussi : le bucket
+n'héberge que ce jeu de données. Les liens `child` qui ne viennent pas de ce
+dépôt sont malgré tout conservés, pour qu'un jeu ajouté plus tard ne soit pas
+effacé au premier run. L'arborescence de `05_catalog/` reproduit exactement
+celle du bucket sous `stac-data/`.
 
-Toute modification se valide avec `stac-valid batch 05_catalog/items/*.json
-05_catalog/collection.json`, qui doit annoncer zéro invalide. Les items publiés
+Toute modification se valide avec
+`stac-valid batch $(find 05_catalog -name '*.json')`, qui doit annoncer zéro
+invalide. Les items publiés
 avant la refonte étaient tous invalides sans que personne ne le voie, STAC
 Browser étant tolérant : ne pas se fier à son affichage.
 

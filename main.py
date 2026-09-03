@@ -246,7 +246,7 @@ def main() -> None:
             METADATA_GRID_FILE=METADATA_GRID_FILE,
             OUTPUT_DIR=OUTPUT_DIR,
             **S3_CREDENTIALS)
-        prefixe = "stac-data/" + S3_DATA_PREFIX
+        prefixe = "stac-data"
         s3_paths = [Path(p).relative_to(CATALOG_DIR) for p in stac_files]
         upload_s3(local_paths=stac_files, S3_BUCKET=S3_BUCKET,
                   s3_paths=s3_paths, S3_PREFIX=prefixe, **S3_CREDENTIALS)
