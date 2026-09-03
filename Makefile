@@ -1,6 +1,6 @@
 .PHONY: help install install-prod install-service uninstall-service update \
         run-all run-as-service run-setup \
-        run-download run-decompress run-split run-convert run-merge run-upload run-ui run-clean \
+        run-download run-decompress run-split run-convert run-build run-check run-upload run-ui run-clean \
         service-stop service-restart service-restart-timer service-status service-logs service-logs-last-run \
         data-hard-clean data-hard-clean-all data-stats
 
@@ -69,7 +69,7 @@ update: ## Met à jour le projet depuis git
 
 run-all: ## Exécute le pipeline complet (dev)
 	@echo "$(GREEN)Exécution du pipeline complet...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --all --overwrite
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --all
 
 run-as-service: ## Exécute comme le ferait le service systemd
 	@echo "$(GREEN)Exécution du pipeline complet par le service...$(NC)"
@@ -95,13 +95,17 @@ run-convert: ## Convertit en NetCDF
 	@echo "$(GREEN)Conversion en NetCDF...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --convert
 
-run-merge: ## Fusionne temporellement
-	@echo "$(GREEN)Fusion temporelle...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --merge
+run-build: ## Assemble une chronique continue par variable
+	@echo "$(GREEN)Assemblage des chroniques...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --build
+
+run-check: ## Contrôle les fichiers de sortie sans rien publier
+	@echo "$(GREEN)Contrôle des sorties...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --check
 
 run-upload: ## Upload les données sur S3
 	@echo "$(GREEN)Upload sur S3...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload --overwrite
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload
 
 run-ui: ## Génère et uploade le catalogue STAC
 	@echo "$(GREEN)Mise à jour du catalogue STAC...$(NC)"

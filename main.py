@@ -90,7 +90,8 @@ def build_parser() -> argparse.ArgumentParser:
                       ("build", "assemble une chronique par variable"),
                       ("check", "contrôle les fichiers de sortie"),
                       ("upload", "publie sur le S3"),
-                      ("ui", "génère et publie le catalogue STAC")]:
+                      ("ui", "génère et publie le catalogue STAC"),
+                      ("clean", "supprime les versions périmées, en local et sur le S3")]:
         etapes.add_argument(f"--{nom}", action="store_true", help=aide)
 
     parser.add_argument("--variables", nargs="+", metavar="VAR",
@@ -103,6 +104,8 @@ def main() -> None:
 
     etapes = ["download", "decompress", "split", "convert",
               "build", "check", "upload", "ui"]
+    # Purging is maintenance, not a step of the chain: --all does not imply it,
+    # since the chain already purges what it supersedes as it goes.
     if not args.setup and not any(getattr(args, e) for e in etapes):
         args.all = True
     if args.all:
@@ -160,6 +163,11 @@ def main() -> None:
         if not_uploaded:
             sys.exit(1)
         # Only once the new files are online.
+        clean_s3(S3_BUCKET=S3_BUCKET, S3_PREFIX="data/" + S3_DATA_PREFIX,
+                 **S3_CREDENTIALS)
+
+    if args.clean:
+        clean_local(OUTPUT_DIR)
         clean_s3(S3_BUCKET=S3_BUCKET, S3_PREFIX="data/" + S3_DATA_PREFIX,
                  **S3_CREDENTIALS)
 
