@@ -81,6 +81,7 @@ if MODE == "dev":
     except Exception:
         pass
 
+from safran_fairy import report
 from safran_fairy import (apply_s3_bucket_cors, apply_s3_bucket_policy, build,
                           check, clean_local, clean_s3, convert, decompress,
                           delete_s3_files, download, generate_stac_catalog,

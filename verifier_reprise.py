@@ -21,6 +21,7 @@ import io
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -143,6 +144,17 @@ def main() -> int:
         marque = "✅" if obtenu == veut else "❌"
         echecs += obtenu != veut
         print(f"{marque} {titre:34s} reprise : {obtenu}")
+
+    print("\nLE POINT D'ENTRÉE S'EXÉCUTE\n")
+    # Importer main.py ne suffit pas : main() n'est appelée que sous __main__,
+    # donc un nom manquant dans son corps passe inaperçu. On l'exécute.
+    for options in (["--check"], ["--help"]):
+        rendu = subprocess.run([sys.executable, "main.py", *options],
+                               capture_output=True, text=True)
+        casse = "Traceback" in rendu.stderr or "Traceback" in rendu.stdout
+        echecs += casse
+        print(f"{'❌' if casse else '✅'} main.py {' '.join(options):10s} "
+              f"{'trace d exception' if casse else 'aucune exception'}")
 
     shutil.rmtree(bac, ignore_errors=True)
     print(f"\n{'✅ tout est conforme' if not echecs else f'❌ {echecs} écart(s)'}")
