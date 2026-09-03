@@ -250,29 +250,39 @@ que sur une variable, ce qui divise le reste par 26.
 C'est la phase au plus fort effet pour les utilisateurs, et elle a été chiffrée.
 
 **Le découpage interne du NetCDF est le pire possible pour l'usage dominant.**
-Mesuré sur `T_QUOT_SIM2_19580801-20260901.nc` : les blocs valent
-`[1, 134, 142]`, soit une carte complète par bloc. Extraire la chronique d'un
-seul point de grille oblige donc à décompresser les 24 869 blocs, c'est-à-dire
-tout le fichier, pour 99 Ko utiles. Deux découpages alternatifs produits avec
-`ncks --cnk_dmn` et mesurés sur les mêmes opérations :
+Un NetCDF range son tableau en pavés compressés indépendamment : lire une valeur
+impose de décompresser tout le pavé qui la contient. Les pavés valent ici
+`[1, 134, 142]`, soit une carte complète par jour, si bien qu'extraire la
+chronique d'un point oblige à décompresser les 24 869 pavés, c'est-à-dire tout
+le fichier, pour 99 Ko utiles.
 
-    découpage (time,y,x)   taille    chronique   carte     moyenne
-                                     1 point     1 date    sur 10x10
-    ------------------------------------------------------------------
-    1 x 134 x 142 (actuel)  470 Mo     8,81 s    0,02 s     8,71 s
-    365 x 32 x 32           425 Mo     0,68 s    0,15 s     2,31 s
-    2048 x 16 x 16          406 Mo     0,24 s    0,66 s     0,64 s
+Quatre découpages alternatifs produits avec `ncks --cnk_dmn` et mesurés sur des
+emprises réalistes, un bassin de 5 x 5 points faisant 40 km de côté et un de
+20 x 20 en faisant 160 :
 
-Le cache disque était chaud pour les trois, ce qui minore l'avantage des bons
+    découpage         taille   1 point  bassin 5x5  bassin 20x20   France   1 carte
+    ------------------------------------------------------------------------------
+    1 x 134 x 142     470 Mo    8,79 s      8,70 s        8,74 s   10,55 s    0,01 s
+    365 x 32 x 32     425 Mo    0,68 s      0,60 s        2,35 s   11,85 s    0,15 s
+    2048 x 16 x 16    406 Mo    0,24 s      0,17 s        0,66 s   10,92 s    0,67 s
+    4096 x 12 x 12    403 Mo    0,17 s      0,20 s        0,58 s   10,99 s    1,24 s
+    24869 x 8 x 8     394 Mo    0,12 s      0,10 s        0,56 s   10,92 s    7,17 s
+
+Le cache disque était chaud pour tous, ce qui minore l'avantage des bons
 découpages plutôt qu'il ne l'exagère. Les fichiers rechunkés sont en prime plus
-petits, de 10 à 14 %, les valeurs voisines dans le temps se comprimant mieux que
-les valeurs voisines dans l'espace.
+petits, jusqu'à 16 %, les valeurs voisines dans le temps se comprimant mieux
+que les valeurs voisines dans l'espace : ce n'est pas un arbitrage vitesse
+contre taille, on gagne des deux côtés.
 
-- [ ] adopter `365 x 32 x 32` : aucune opération ne dépasse 2,3 s, la chronique
-      d'un point est 13 fois plus rapide et le fichier 45 Mo plus léger. Le
-      découpage `2048 x 16 x 16` est meilleur encore pour les chroniques et les
-      moyennes de bassin, au prix d'une carte à 0,66 s ; à retenir si l'usage
-      hydrologique domine nettement. **À trancher.**
+- [ ] adopter **`2048 x 16 x 16`**, soit 5,6 ans empilés sur une tuile de
+      128 km, 2,1 Mo par pavé décompressé. L'usage visé est la moyenne sur
+      bassin dans le temps, et le gain y sature au-delà : aller jusqu'à
+      `24869 x 8 x 8` fait gagner 0,10 s sur un grand bassin et coûte 6,5 s sur
+      la lecture d'une carte. À l'inverse `365 x 32 x 32` laisse un grand
+      bassin à 2,35 s, ses tuiles de 256 km étant trop grosses pour ne pas être
+      décompressées quatre fois.
+- [ ] ne pas chercher à optimiser la moyenne sur la France entière : elle lit
+      forcément tout le fichier, environ 11 s quel que soit le découpage.
 - [ ] poser le découpage dans `convert.py` via `chunksizes`, et vérifier ce que
       `ncrcat` en fait à l'assemblage : c'est lui qui écrit le fichier final.
 

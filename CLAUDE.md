@@ -189,8 +189,13 @@ documentation.
   complète par bloc. Extraire la chronique d'un point coûte donc la
   décompression du fichier entier : 8,81 s pour 99 Ko utiles, contre 0,02 s
   pour une carte. Ce n'est pas un choix, c'est le défaut de netCDF4 sur une
-  dimension temporelle illimitée. Correction chiffrée en phase 4 de
-  chantier.md, à ne pas confondre avec un réglage de compression.
+  dimension temporelle illimitée. Le découpage retenu est `2048 x 16 x 16`,
+  chiffré en phase 4 de chantier.md. Ne pas confondre avec un réglage de
+  compression : le fichier rechunké est à la fois plus rapide et plus petit.
+- L'usage visé est la **moyenne sur bassin versant dans le temps**, c'est lui
+  qui arbitre le découpage. Une moyenne sur la France entière lit forcément
+  tout le fichier, environ 11 s quel que soit le découpage : ne pas optimiser
+  pour ce cas.
 
 ## Vérifications après modification
 
