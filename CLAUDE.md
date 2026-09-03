@@ -1,282 +1,161 @@
 # Notes pour Claude Code
 
-Le [README](README.md) documente le projet, mais **il décrit encore l'ancienne
-stratégie à trois fichiers et l'ancien format source** : il est à refondre, et
-tant que ce n'est pas fait il ne fait pas foi sur la partie « Stratégie de mise
-à jour » et « Structure des données ». L'état du chantier en cours vit dans
-[chantier.md](chantier.md). Ce fichier ne contient que ce qui n'est ni dans
-l'un ni dans l'autre.
+Trois documents se partagent le travail, et celui-ci ne répète aucun des deux
+autres. [README.md](README.md) décrit **les données** pour qui veut s'en servir.
+[INSTALL.md](INSTALL.md) décrit **l'exploitation** du service.
+[chantier.md](chantier.md) porte **l'état du chantier** en cours. Ce fichier ne
+contient que ce qui n'est ni dans l'un ni dans l'autre : les conventions, et les
+faits mesurés qu'on risquerait de « corriger » par erreur.
 
 ## Contexte
 
 Dépôt d'une famille : convention de nommage `get-data-<plateforme>-<jeu de
-données>`. Voisins dans le dossier parent : `get-data-hubeau-onde` (le modèle
-de référence, le plus abouti) et `get-data-vigieau-secheresse`. Renommage de ce
-dépôt prévu en `get-data-meteofrance-sim2`, voir chantier.md phase 5.
+données>`. Voisins dans le dossier parent, `get-data-hubeau-onde`, le modèle de
+référence, et `get-data-vigieau-secheresse`. Renommage prévu en
+`get-data-meteofrance-sim2`.
 
-Différence assumée avec les deux voisins : eux sont des téléchargeurs qu'on
-lance à la demande et qui produisent un jeu de tables local. Celui-ci est un
-**service qui tourne en continu** (timer systemd quotidien) et qui **republie**
-sur un stockage objet public avec un catalogue STAC. Il a donc de l'état
-persistant à deux endroits, sur le disque du serveur et sur le S3, et une
-notion d'idempotence que les autres n'ont pas. Les conventions d'écriture et de
-structure sont communes ; l'architecture d'exécution ne l'est pas.
-
-État : **cassé en production depuis le 4 août 2026**, chantier de réparation en
-cours. Ce n'est pas un dépôt stabilisé, contrairement aux deux voisins.
-
-## Ce que fait le projet
-
-Météo-France publie la réanalyse SIM2 (SAFRAN-ISBA-MODCOU, France
-métropolitaine, grille de 8 km, depuis le 1er août 1958) sous forme de gros CSV
-compressés où toutes les variables sont mélangées dans les mêmes fichiers,
-découpés par tranches temporelles. Ce format est difficilement exploitable.
-
-Le pipeline le retourne : il produit **un NetCDF par variable climatique**,
-couvrant toute la chronique, et le publie sur un bucket S3 public avec un
-catalogue STAC. C'est le seul objet de ce dépôt. La donnée n'est ni corrigée ni
-recalculée, seulement transposée.
+Différence assumée : les voisins sont des téléchargeurs qu'on lance à la
+demande. Celui-ci est un **service qui tourne en continu** et qui **republie**,
+donc avec de l'état persistant sur le disque du serveur et sur le S3, et une
+exigence d'idempotence que les autres n'ont pas. Les conventions d'écriture sont
+communes, l'architecture d'exécution ne l'est pas.
 
 ## Interaction
 
-Ne pas utiliser le widget de questions à choix multiples (outil
-`AskUserQuestion`, les options cliquables). Les arbitrages se posent en texte
-dans la réponse : les options, celle qui est recommandée, ce qui les distingue,
-puis la réponse arrive en prose. Le reproche ne porte pas sur la mise en forme
-mais sur le format d'échange : réponses figées alors qu'aucune n'est forcément
-la bonne, et impossibilité de tout avoir sous les yeux. Les tableaux, schémas
-et maquettes ASCII sont au contraire bienvenus, directement dans le texte.
+Ne pas utiliser le widget de questions à choix multiples (`AskUserQuestion`).
+Les arbitrages se posent en texte : les options, celle qui est recommandée, ce
+qui les distingue, et la réponse arrive en prose. Le reproche porte sur le
+format d'échange, pas sur la mise en forme : les tableaux et schémas ASCII sont
+au contraire bienvenus.
 
 ## Conventions
 
 - **Code et commentaires en anglais, messages affichés en français.** Les noms
-  de variables climatiques restent ceux de Météo-France (`TINF_H`, `PRELIQ`,
-  `SSWI_10J`) : les renommer casserait la traçabilité avec la documentation
-  SIM2 et avec les fichiers déjà publiés.
-- README, chantier.md, commits, AUTHORS.md en français, en prose (pas de
-  listes à puces télégraphiques).
-
-### Rédaction
-
-- **Aucun tiret cadratin ni demi-cadratin** dans les textes. Deux-points,
-  virgule, parenthèses ou point font le travail.
-- Typographie française : guillemets `«  »`, espace avant `: ; ! ?`, nombres
-  groupés par milliers avec une espace (`9 892`), virgule décimale (`9,44 Go`).
-- Pas de superlatifs ni de formules d'annonce. Les affirmations chiffrées sont
-  des mesures, pas des estimations : ne pas en ajouter sans avoir vérifié, et
-  marquer explicitement « à mesurer » ce qui ne l'a pas été.
-- En-tête SPDX en tête de chaque fichier Python :
-  `# SPDX-FileCopyrightText: 2026 Louis Héraut <louis.heraut@inrae.fr>` puis
-  `# SPDX-License-Identifier: GPL-3.0-or-later`.
+  de variables climatiques restent ceux de Météo-France, pour rester traçables
+  jusqu'à sa documentation.
+- README, INSTALL, chantier, commits, en français, en prose.
+- **Aucun tiret cadratin ni demi-cadratin.** Deux-points, virgule, parenthèses.
+- Typographie française : guillemets `«  »`, espace avant `: ; ! ?`, milliers
+  séparés par une espace, virgule décimale.
+- Pas de superlatifs. **Les affirmations chiffrées sont des mesures**, jamais des
+  estimations : ne pas en ajouter sans avoir vérifié, et marquer « à mesurer »
+  ce qui ne l'a pas été. Les exemples de code du README ont tous été exécutés.
+- En-tête SPDX en tête de chaque fichier Python.
 
 ## Environnement
 
-Debian/Ubuntu bloque `pip install` en système (PEP 668). Le venv du projet est
-`.python_env/`, à activer avant toute commande :
+Le venv est `.python_env/`, à activer avant toute commande. NCO est une
+dépendance système, pas Python. `.env` porte `MODE` et `CONFIG_FILE`, qui
+désigne le fichier de configuration à utiliser. Le reste est dans INSTALL.md.
 
-```bash
-source .python_env/bin/activate
-```
-
-Dépendance système hors Python : **NCO** (`sudo apt install nco`). Le pipeline
-appelle `ncrcat` en sous-processus pour concaténer les NetCDF ; ni xarray ni
-netCDF4 ne le remplacent à ce volume.
-
-La configuration est scindée en deux : `config.json` (chemins, URL, bucket,
-versionné sous forme de `config.json.dist`) et `.env` (secrets et `MODE`,
-jamais versionné, gabarit dans `env.dist`). `MODE=dev` active seulement
-l'autoreload pour un pilotage depuis un REPL ; il n'empêche plus `main.py` de
-s'exécuter, comme c'était le cas avant, ce qui rendait un appel en ligne de
-commande silencieusement sans effet. Pour piloter depuis un REPL, importer le
-paquet plutôt que le script, comme chez les deux voisins.
-
-Tous les dossiers de données sont ignorés par git et se régénèrent.
-
-## Le service en production
-
-```
-/opt/safran-fairy/            le dépôt cloné
-/var/lib/safran-fairy/        les données (00_ à 05_) et download_state.json
-utilisateur safran-fairy      compte système, sans shell
-safran-sync.timer             OnCalendar=*-*-* 02:00:00, Persistent=true
-safran-sync.service           ExecStart .python_env/bin/python main.py --all
-```
-
-Le bucket est `riverly-data-lake` sur `https://s3-data.meso.umontpellier.fr`,
-avec deux préfixes : `data/safran-fairy/` pour les NetCDF et
-`stac-data/safran-fairy/` pour le catalogue, plus le catalogue racine
-`stac-data/catalog.json`. Tout le catalogue est généré par le pipeline.
-
-Le bucket est en lecture publique par policy, mais le `ListObjects` anonyme est
-refusé : pour savoir ce qui est publié sans les clés, passer par le catalogue
-STAC, pas par une requête de listage.
-
-## La source Météo-France, telle qu'elle est depuis le 31 juillet 2026
-
-Jeu `6569b27598256cc583c917a7` sur data.gouv.fr, 83 ressources, dont :
-
-- **69 fichiers annuels** `QUOT_SIM2_<année>.csv.gz`, de 1958 à 2026, servis
-  depuis `https://meteofrance.s3.sbg.io.cloud.ovh.net/data/REF_CC/SIM/`.
-  9,44 Go au total en compressé (somme des `check:headers:content-length`),
-  environ 4,5 fois plus décompressés.
-- **un fichier glissant** `QUOT_SIM2_latest.csv.gz`, les 60 derniers jours,
-  actualisé quotidiennement. Mesuré le 2 septembre 2026 : du 2026-07-04 au
-  2026-09-01.
-- les documents et les shapefiles de la grille.
-
-Rythme annoncé par le producteur : actualisation bimensuelle des quatre
-dernières années, quotidienne pour les 60 jours glissants. Observé le
-2 septembre 2026 : les fichiers 2023, 2024, 2025 et 2026 portent tous un
-`last_modified` du jour, les autres celui du 31 juillet 2026.
-
-**Les fichiers annuels récents sont donc réécrits, y compris pour des années
-révolues.** Toute logique qui suppose qu'une année passée est figée est fausse.
-
-Format du CSV : séparateur `;`, 29 colonnes, `LAMBX;LAMBY;DATE` puis les
-26 variables, `DATE` en `AAAAMMJJ`, `LAMBX` et `LAMBY` en hectomètres en
-Lambert II étendu (EPSG:27572). 9 892 points de grille, qui se rangent dans une
-grille 134 x 142 avec des NaN hors du domaine.
+Le bucket est en lecture publique mais le `ListObjects` anonyme est refusé :
+pour savoir ce qui est publié sans les clés, passer par le catalogue STAC.
 
 ## Pièges à ne pas « corriger »
 
-Ces constats sont mesurés sur les fichiers réels, pas déduits de la
-documentation.
+Tout ce qui suit est mesuré sur les fichiers réels. Les détails chiffrés sont
+dans les messages de commit ; ici, seulement de quoi ne pas défaire le travail.
 
-- **L'ETP a été révisée sur toute la chronique.** Comparaison ancien contre
-  nouveau fichier 1958, sur 399 lignes communes : 350 lignes diffèrent sur
-  `ETP`, écart maximum 1,1 mm, et **toutes les autres colonnes sont identiques
-  au 1e-9 près**. La documentation confirme le passage à « formule de
-  Penman-Monteith FAO-56 ». L'ETP actuellement publiée sur le S3 est donc
-  périmée jusqu'à la republication. La métadonnée est à jour dans
-  `resources/safran-variables_2026-09-03.csv`.
-- **Le schéma CSV, lui, n'a pas bougé** : mêmes colonnes, même ordre, même
-  grille. `split.py` et `convert.py` n'ont pas à changer sur le fond.
-- Le nom de fichier ne porte plus aucune date. Toute la logique qui lisait la
-  couverture temporelle dans le nom du fichier source est morte.
-- Les identifiants de ressource data.gouv ont tous changé, sauf ceux des
-  documents. `download_state.json` d'avant le 31 juillet 2026 est caduc.
-- `analysis:checksum` n'est pas exploitable comme détecteur de changement : il
-  est absent des ressources volumineuses, que data.gouv marque
-  `analysis:error: File too large to download`. Rester sur `last_modified`,
-  éventuellement complété par `check:headers:content-length`.
-- Le fichier glissant et le fichier de l'année en cours se recouvrent. Sur ce
-  recouvrement ils sont **d'accord au bit près** : mesuré le 3 septembre 2026
-  sur `T`, 60 jours communs, aucune maille différente. La règle « l'annuel
-  l'emporte » est donc un départage prudent et non une correction ; elle sert
-  surtout à ce que le glissant ne fasse que prolonger au-delà du dernier jour
-  des fichiers annuels.
-- **L'année en cours est révisée en amont, et pas qu'à la marge.** Les valeurs
-  de `T` de juillet 2026 ont changé entre le 4 août et le 2 septembre 2026 :
-  73 % des mailles concernées, écart moyen 0,11 °C, maximum 3,5 °C, sans
-  décalage temporel (testé à plus ou moins deux jours). C'est le
-  rafraîchissement bimensuel à l'œuvre. Aucune partie de la chronique ne peut
-  être considérée comme figée, y compris à quelques semaines.
-- `ncrcat -h -A sortie.nc entree.nc sortie.nc` ne duplique pas le contenu de
-  `sortie.nc`, vérifié sur un cas réduit. Ce n'est pas la cause de la
-  corruption du 4 août, voir chantier.md.
-- **`ncrcat -A` écrit un nom d'attribut à l'envers.** Avec NCO 5.2.1, le mode
-  append fait apparaître sur la variable un attribut nommé `eulaVlliF_`, soit
-  `_FillValue` retourné caractère par caractère. La concaténation simple
-  `ncrcat -O` ne le fait pas. Reproduit en quatre commandes sur un extrait de
-  quinze jours. C'est pour cette raison que tous les fichiers `latest` publiés
-  le portent et qu'aucun `previous` ni `historical` ne le porte. Ne pas
-  utiliser `-A` dans la chaîne de construction, et laisser `check.py` refuser
-  les fichiers qui présentent un nom d'attribut inversé.
-- La grille de sortie est **134 x 143** pour 9 892 points réels. Les cases vides
-  ne sont pas une erreur de conversion, le domaine SAFRAN n'est pas rectangulaire.
-  Les axes sont construits depuis la grille de référence et **jamais depuis les
-  données** : une colonne du rectangle, à x = 68 000 m, ne porte aucun point, et
-  la déduire des données la ferait disparaître. L'axe x devenait alors
-  irrégulier, avec un pas de 16 km à cet endroit, et dans cet état **GDAL refuse
-  de caler le fichier** et le lit en coordonnées pixel. Cela garantit aussi que
-  tous les fichiers annuels partagent la même grille, ce dont ncrcat a besoin.
-- **Les coordonnées géographiques s'appellent `latitude` et `longitude`, jamais
-  `lat` et `lon`.** Le pilote netCDF de GDAL traite les noms courts comme des
-  tableaux de géolocalisation et abandonne alors la géotransformation, ce qui
-  rend le fichier inutilisable comme raster ; et comme ces tableaux contiennent
-  des NaN hors domaine, `gdalwarp -geoloc` échoue aussi. Avec les noms longs,
-  GDAL cale correctement et les variables restent lisibles. Vérifié sur les deux
-  formes.
-- **Le découpage interne des NetCDF publiés vaut `[1, 134, 142]`**, une carte
-  complète par bloc. Extraire la chronique d'un point coûte donc la
-  décompression du fichier entier : 8,81 s pour 99 Ko utiles, contre 0,02 s
-  pour une carte. Ce n'est pas un choix, c'est le défaut de netCDF4 sur une
-  dimension temporelle illimitée. Le découpage retenu est `2048 x 16 x 16`,
-  chiffré en phase 4 de chantier.md. Ne pas confondre avec un réglage de
-  compression : le fichier rechunké est à la fois plus rapide et plus petit.
-- L'usage visé est la **moyenne sur bassin versant dans le temps**, c'est lui
-  qui arbitre le découpage. Une moyenne sur la France entière lit forcément
-  tout le fichier, environ 11 s quel que soit le découpage : ne pas optimiser
-  pour ce cas.
+### La source
 
-## Vérifications après modification
+- **L'ETP a été recalculée en amont** selon Penman-Monteith FAO-56, sur toute la
+  chronique depuis 1958. Toutes les autres colonnes sont identiques au 1e-9
+  près : le schéma CSV, lui, n'a pas bougé.
+- **Aucun nom de fichier source ne porte de date** depuis juillet 2026, et les
+  identifiants de ressource ont tous changé. `analysis:checksum` n'est pas
+  exploitable, il manque sur les gros fichiers. La détection de changement
+  repose sur `last_modified` et la taille.
+- **L'année en cours est révisée en profondeur.** 73 % des mailles de juillet
+  2026 ont changé entre le 4 août et le 2 septembre. Aucune partie de la
+  chronique n'est figée, même à quelques semaines.
+- Le glissant et le fichier annuel sont **d'accord au bit près** sur leur
+  recouvrement. La règle qui fait primer l'annuel est un départage prudent, pas
+  une correction.
+- Tout ce qui décrit la forme du dépôt amont vit dans `sources.py`, et nulle
+  part ailleurs. `check_inventory()` bloque si elle change : produire une
+  chronique tronquée en silence serait pire qu'un arrêt.
 
-`safran_fairy/check.py` contrôle la structure des NetCDF produits et rend la
-liste des fichiers rejetés. **Rien ne doit être publié si elle n'est pas
-vide.** C'est ce qui a manqué le 4 août.
+### L'outillage
 
-```python
-from safran_fairy import check
-failed = check(OUTPUT_DIR="04_data-output")
-```
+- **`ncrcat -A` écrit un nom d'attribut à l'envers**, `eulaVlliF_` pour
+  `_FillValue`, avec NCO 5.2.1. La concaténation simple ne le fait pas. Ne pas
+  utiliser `-A`, et laisser `check.py` refuser les noms inversés.
+- **`ncrcat` hérite du découpage interne de son premier fichier d'entrée**, et
+  lui imposer un découpage avec `--cnk_dmn` ne rend pas la main. Le découpage se
+  décide donc dans `convert.py`, sur les fichiers annuels.
+- Le découpage est `128 x 16 x 16`. **C'est la tuile spatiale qui compte, pas la
+  profondeur temporelle** : à tuiles de 16, une profondeur de 128 vaut une
+  profondeur de 2048 sur les chroniques et rend les cartes onze fois plus
+  rapides. La profondeur est une constante et non la longueur de l'année, pour
+  que le résultat ne dépende pas de l'ordre des entrées.
 
-Cas de référence pour valider le contrôle lui-même : il doit rejeter
-`04_data-output-prod/T_QUOT_SIM2_latest-19580801-20260802.nc` (chronique
-dupliquée, axe non monotone) et accepter les `previous` et `historical` publiés
-sur le S3, qui sont sains.
+### Le géoréférencement
 
-Repères mesurés, à retrouver après le rebuild : premier jour 1958-08-01,
-9 892 points non NaN par pas de temps, grille 134 x 142, une variable plus la
-variable `crs`, encodage `float32` compressé zlib niveau 4.
+Trois pièges indépendants, chacun suffisant à rendre le fichier inutilisable
+dans un SIG. Ils ont tous été constatés avec `gdalinfo` et `terra`.
 
-Fichier de référence conservé hors git : `04_data-output-prod/`, le dernier
-produit par la production. Il est **corrompu** (voir chantier.md) : il sert à
-comparer les valeurs sur la période commune, pas à valider une structure.
+- **Les axes viennent de la grille de référence, jamais des données.** Une
+  colonne du rectangle, à x = 68 000 m, ne porte aucun point ; la déduire des
+  données la faisait disparaître et rendait l'axe x irrégulier, ce qui suffit à
+  faire abandonner le calage à GDAL. D'où 143 colonnes et non 142. Cela garantit
+  aussi que tous les fichiers annuels partagent la même grille, ce dont `ncrcat`
+  a besoin.
+- **Les coordonnées géographiques s'appellent `latitude` et `longitude`.** GDAL
+  traite toute variable nommée `lat` ou `lon` comme un tableau de
+  géolocalisation et abandonne alors la géotransformation ; et comme ces
+  tableaux portent des NaN hors domaine, `gdalwarp -geoloc` échoue aussi.
+- **`crs_wkt` et `spatial_ref` portent du WKT**, tiré de la base EPSG via
+  pyproj. Ils valaient la chaîne `EPSG:27572`, que GDAL essaie de lire comme du
+  WKT, d'où le `ERROR 1: missing [` et une couche sans système de coordonnées.
 
-## Le catalogue STAC
+### Le catalogue
 
-Une collection, un item par fichier publié, en STAC 1.1.0, avec les extensions
-`datacube`, `projection`, `file`, `scientific` et `processing`. Il est généré
-depuis le bucket et non depuis le dossier de sortie : **il décrit ce qui est
-réellement en ligne**.
-
-Le catalogue racine `stac-data/catalog.json` est regénéré lui aussi : le bucket
-n'héberge que ce jeu de données. Les liens `child` qui ne viennent pas de ce
-dépôt sont malgré tout conservés, pour qu'un jeu ajouté plus tard ne soit pas
-effacé au premier run. L'arborescence de `05_catalog/` reproduit exactement
-celle du bucket sous `stac-data/`.
-
-Toute modification se valide avec
-`stac-valid batch $(find 05_catalog -name '*.json')`, qui doit annoncer zéro
-invalide. Les items publiés
-avant la refonte étaient tous invalides sans que personne ne le voie, STAC
-Browser étant tolérant : ne pas se fier à son affichage.
+- Les items publiés avant la refonte étaient **tous invalides**, sur
+  `'collection' is a required property`. Personne ne l'avait vu parce que STAC
+  Browser est tolérant : ne pas se fier à son affichage, valider.
+- Le catalogue racine est généré, mais les liens `child` qui ne viennent pas de
+  ce dépôt sont conservés, pour qu'un jeu ajouté plus tard ne soit pas effacé.
+- L'arborescence de `05_catalog/` reproduit celle du bucket sous `stac-data/`.
 
 ## Métadonnées : la ligne suivie
 
-Prendre la standardisation qui ne coûte rien, s'arrêter là où elle toucherait
-au contenu. Le projet redistribue la donnée de Météo-France dans un autre
-format, il ne la retouche pas, et cela vaut aussi pour la présentation.
+Prendre la standardisation qui ne coûte rien, s'arrêter là où elle toucherait au
+contenu. Le projet redistribue la donnée de Météo-France dans un autre format,
+il ne la retouche pas, et cela vaut aussi pour sa présentation.
 
-Les fichiers déclarent `Conventions = "CF-1.10"`, portent `title`, `history` et
-`references` en attributs globaux, et `standard_name` plus `cell_methods` par
-variable. Les noms sont vérifiés contre la table CF officielle, jamais écrits
-de mémoire : la télécharger et l'interroger prend une minute.
+Les noms CF sont **vérifiés contre la table officielle**, jamais écrits de
+mémoire : la télécharger et l'interroger prend une minute. `units` porte la
+forme udunits, `degC` et non `°C` ; c'est un changement d'écriture, pas d'unité,
+et la forme d'origine reste dans le fichier de variables.
 
-`units` porte la forme udunits, que CF exige et que les outils savent analyser :
-`degC` et non `°C`, `m s-1` et non `m/s`. Ce n'est pas un changement d'unité,
-seulement d'écriture ; le libellé français reste dans `long_name` et la forme
-d'origine dans la colonne `unite` du fichier de variables.
+**Huit variables n'ont volontairement pas de `standard_name`** : celles en
+millimètres, dont l'unité n'est pas convertible vers l'unité canonique CF en
+kilogrammes par mètre carré, plus SWI et SSWI_10J qui n'ont pas d'équivalent.
+Leur en donner un imposerait de changer l'étiquette d'unité. C'est un choix,
+tranché avec Louis, pas un oubli.
 
-**Huit variables n'ont volontairement pas de `standard_name`** : ETP, EVAP, PE,
-DRAINC, RUNC et ECOULEMENT sont en millimètres quand l'unité canonique CF est
-le kilogramme par mètre carré, et leur en donner un imposerait de changer
-l'étiquette d'unité ; SWI et SSWI_10J n'ont pas d'équivalent dans le
-vocabulaire. C'est un choix, pas un oubli, voir chantier.md.
+Le sens des fenêtres d'agrégation n'est écrit dans aucune documentation
+Météo-France ; il a été établi sur les données. Voir le README, qui le publie.
+
+## Vérifications après modification
+
+```bash
+python main.py --all --variables T          # la chaîne entière, sur une variable
+stac-valid batch $(find 05_catalog -name '*.json')   # zéro invalide attendu
+gdalinfo NETCDF:"04_data-output/T_*.nc":T   # Origin et Pixel Size renseignés
+```
+
+`check.py` rend la liste des fichiers rejetés : **rien ne doit être publié si
+elle n'est pas vide.** Il doit refuser
+`04_data-output-prod/T_QUOT_SIM2_latest-19580801-20260802.nc`, conservé comme
+cas de test négatif : sa chronique est dupliquée et son axe non monotone.
+
+Repères mesurés : premier jour 1958-08-01, grille 134 x 143, 9 892 points non
+NaN par pas de temps, une variable en float32 plus `crs`, `latitude` et
+`longitude`.
 
 ## Licence
 
 Le code est en GPL-3.0-or-later ; **les données SIM2 ne le sont pas** (Licence
-Ouverte / Open Licence 2.0, Etalab, Météo-France). Ne pas laisser un texte
-suggérer le contraire, ni sur le dépôt, ni dans le catalogue STAC, ni dans les
-attributs NetCDF.
+Ouverte 2.0, Etalab, Météo-France). Ne pas laisser un texte suggérer le
+contraire, ni dans le dépôt, ni dans le catalogue, ni dans les attributs NetCDF.
