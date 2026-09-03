@@ -159,10 +159,18 @@ documentation.
   est absent des ressources volumineuses, que data.gouv marque
   `analysis:error: File too large to download`. Rester sur `last_modified`,
   éventuellement complété par `check:headers:content-length`.
-- Le fichier glissant et le fichier de l'année en cours se recouvrent. Pour les
-  jours présents dans les deux, **c'est le fichier annuel qui fait foi** : il
-  est consolidé, le glissant ne l'est pas. Le glissant ne sert qu'à prolonger
-  au-delà du dernier jour des fichiers annuels.
+- Le fichier glissant et le fichier de l'année en cours se recouvrent. Sur ce
+  recouvrement ils sont **d'accord au bit près** : mesuré le 3 septembre 2026
+  sur `T`, 60 jours communs, aucune maille différente. La règle « l'annuel
+  l'emporte » est donc un départage prudent et non une correction ; elle sert
+  surtout à ce que le glissant ne fasse que prolonger au-delà du dernier jour
+  des fichiers annuels.
+- **L'année en cours est révisée en amont, et pas qu'à la marge.** Les valeurs
+  de `T` de juillet 2026 ont changé entre le 4 août et le 2 septembre 2026 :
+  73 % des mailles concernées, écart moyen 0,11 °C, maximum 3,5 °C, sans
+  décalage temporel (testé à plus ou moins deux jours). C'est le
+  rafraîchissement bimensuel à l'œuvre. Aucune partie de la chronique ne peut
+  être considérée comme figée, y compris à quelques semaines.
 - `ncrcat -h -A sortie.nc entree.nc sortie.nc` ne duplique pas le contenu de
   `sortie.nc`, vérifié sur un cas réduit. Ce n'est pas la cause de la
   corruption du 4 août, voir chantier.md.

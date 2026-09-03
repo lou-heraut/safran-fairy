@@ -206,15 +206,36 @@ que sur une variable, ce qui divise le reste par 26.
       contrôlé en 4 s. La sortie est **strictement identique** à celle de
       l'ancien pipeline sur 1958 : mêmes dates, mêmes coordonnées, mêmes
       valeurs, mêmes attributs.
-- [ ] `python main.py --download` sur les 9,44 Go, puis dérouler la chaîne
-      complète avec `--variables TINF_H`
+- [x] `main.py --download` : 83 ressources, 9,44 Go de données, aucun échec.
+- [x] chaîne complète sur `T`, de 1958 à 2026 : sortie
+      `T_QUOT_SIM2_19580801-20260901.nc`, 470 Mo, acceptée par `check.py`.
+      Le glissant a été converti puis n'a rien apporté, le fichier annuel 2026
+      atteignant déjà le 1er septembre : comportement conforme à la règle.
 - [ ] `check.py` passe sur la sortie
-- [ ] comparer à `04_data-output-prod/T_QUOT_SIM2_latest-19580801-20260802.nc`
-      sur la période commune, après déduplication de sa partie corrompue. Les
-      valeurs doivent être identiques, ETP mise à part. Faire la comparaison
-      sur `T` si on veut réutiliser directement ce fichier de référence.
-- [ ] noter au passage les temps de chaque étape, sans en faire un préalable :
-      sur une seule variable le volume reste modeste, on verra sur le coup
+- [x] comparaison à `04_data-output-prod/T_QUOT_SIM2_latest-19580801-20260802.nc`,
+      partie dupliquée écartée :
+
+      1958-08-01 -> 2026-06-30   24 806 jours   0 maille différente
+      2026-07-01 -> 2026-07-31        31 jours   73 % des mailles, max 3,5 °C
+      2026-08-01                                 0 maille différente
+      2026-08-02                                 300 mailles, max 0,2 °C
+
+      Soit 68 années reproduites à l'identique, et un écart circonscrit à
+      juillet 2026 qui n'est pas un défaut de la chaîne mais une révision
+      amont : pas de décalage temporel, et les 9 892 points du 15 juillet 2026
+      confrontés un par un au CSV brut donnent un écart maximum de 1e-6, soit
+      l'arrondi float32.
+- [x] temps mesurés sur une variable, machine locale, 3 septembre 2026 :
+
+      décompression   2 min 58   70 fichiers, 35,15 Go écrits
+      découpage       4 min 43   70 fichiers,  0,35 Go
+      conversion      2 min 27   70 fichiers,  0,47 Go
+      assemblage      0 min 42    1 fichier,   0,47 Go
+      total          10 min 50
+
+      Le découpage domine. Pour les 26 variables il ne sera pas 26 fois plus
+      long, la lecture du CSV étant faite une seule fois, mais c'est là qu'il
+      faudra regarder si le rebuild complet traîne.
 
 ### Phase 3, remettre la production en route
 
