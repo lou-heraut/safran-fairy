@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from art import tprint
+from pyproj import CRS
 
 
 # Storage layout of the produced NetCDF, in (time, y, x). The spatial tile is
@@ -25,6 +26,7 @@ from art import tprint
 TIME_CHUNK = 128
 SPACE_CHUNK = 16
 
+EPSG = 27572  # Lambert II étendu
 CONVENTIONS = "CF-1.10"
 REFERENCES = ("https://www.data.gouv.fr/datasets/6569b27598256cc583c917a7 ; "
               "https://doi.org/10.57745/BAZ12C")
@@ -167,7 +169,7 @@ def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE,
         f"{datetime.now(timezone.utc):%Y-%m-%dT%H:%M:%SZ} : produit par "
         f"safran-fairy depuis {file.name}")
     ds.attrs['references'] = REFERENCES
-    ds.attrs['crs'] = 'EPSG:27572'
+    ds.attrs['crs'] = f'EPSG:{EPSG}'
     ds.attrs['grid_mapping_name'] = 'lambert_conformal_conic'
     ds.attrs['spatial_resolution'] = '8 km (0.072°)'
     ds.attrs['projection'] = 'Lambert II étendu'
@@ -208,7 +210,13 @@ def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE,
             'semi_major_axis': 6378249.2,
             'semi_minor_axis': 6356515.0,
             'inverse_flattening': 293.46602,
-            'spatial_ref': 'EPSG:27572'
+            # WKT et non « EPSG:27572 » : GDAL lit ces deux attributs comme du
+            # WKT, et échouait sur « missing [ » devant une chaîne qui n'en est
+            # pas. Sans eux le fichier s'ouvre sans système de coordonnées, donc
+            # ne se superpose à rien dans un SIG. Le WKT vient de la base EPSG
+            # plutôt que d'être recopié, pour ne pas dériver.
+            'crs_wkt': CRS.from_epsg(EPSG).to_wkt(),
+            'spatial_ref': CRS.from_epsg(EPSG).to_wkt(),
         }
     )
     

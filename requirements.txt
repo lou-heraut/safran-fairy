@@ -5,6 +5,7 @@ netCDF4
 python-dotenv
 art
 xarray
+pyproj
 boto3
 
 # Vérification facultative de la conformité du catalogue STAC
