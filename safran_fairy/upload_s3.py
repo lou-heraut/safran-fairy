@@ -5,7 +5,7 @@ import requests
 import json
 import time
 from pathlib import Path
-from art import tprint
+from .report import banner, humain, line, phase, summary
 import boto3
 import mimetypes
 
@@ -171,11 +171,12 @@ def upload_s3(local_paths: list,
     if s3_paths is None:
         s3_paths = local_paths
 
+    banner("upload")
+
     not_uploaded = []
     for i, (local_path, s3_path) in enumerate(zip(local_paths, s3_paths)):
         # s3_key = f"{S3_PREFIX}/{s3_path}".lstrip("/")
         s3_key = "/".join([S3_PREFIX.strip("/"), str(s3_path).strip("/")])
-        print(f"\n📤 [{i+1}/{len(local_paths)}] {s3_key}")
         try:
             file_size = os.path.getsize(local_path) / (1024**2)
             start_time = time.time()
@@ -184,110 +185,14 @@ def upload_s3(local_paths: list,
                 ExtraArgs={'ContentType': get_content_type(local_path)}
             )
             elapsed = time.time() - start_time
-            print(f"   ✅ {round(file_size, 2)} MB @ {round(file_size/elapsed, 2)} MB/s")
+            line(f"[{i+1}/{len(local_paths)}] {Path(s3_key).name:52s} "
+                 f"{humain(file_size * 1e6):>8s} à {file_size/elapsed:.1f} Mo/s")
         except Exception as e:
-            print(f"   ❌ {str(e)}")
+            line(f"❌ {Path(s3_key).name} : {e}")
             not_uploaded.append(local_path)
 
-    print(f"\nRÉSUMÉ — {len(local_paths)-len(not_uploaded)}/{len(local_paths)} uploadés")
+    summary(envoyes=len(local_paths) - len(not_uploaded), echecs=len(not_uploaded))
     return not_uploaded
-
-# def upload_s3(S3_BUCKET: str,
-#               S3_PREFIX: str,
-#               file_paths: list = None,
-#               overwrite: bool = False,
-#               organize_by_version: bool = False,
-#               relative_to: str = None,
-#               S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
-#               S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
-#               S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
-#               S3_REGION: str = os.getenv("S3_REGION", "eu-west-1")):
-
-#     tprint("upload", "small")
-
-#     s3 = boto3.client('s3',
-#                       aws_access_key_id=S3_ACCESS_KEY,
-#                       aws_secret_access_key=S3_SECRET_KEY,
-#                       endpoint_url=S3_ENDPOINT,
-#                       region_name=S3_REGION)
-    
-#     if not file_paths:
-#         print("\n⚠️  Aucun fichier de données à uploader")
-#         return []
-
-#     print("\nUPLOAD S3")
-#     print(f"   Bucket: {S3_BUCKET}")
-#     print(f"   Préfixe: {S3_PREFIX or '(racine)'}")
-#     print(f"   Fichiers: {len(file_paths)}")
-
-#     # Fichiers déjà présents dans le bucket
-#     existing_keys = set()
-#     paginator = s3.get_paginator('list_objects_v2')
-#     for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=S3_PREFIX):
-#         for obj in page.get('Contents', []):
-#             existing_keys.add(obj['Key'])
-
-#     not_uploaded = []
-#     skipped = []
-
-#     for i, file_path in enumerate(file_paths):
-#         path_obj = Path(file_path)
-
-#         if organize_by_version:
-#             parsed = parse_filename(path_obj.name)
-#             if parsed:
-#                 version = parsed['version']
-#                 prefix = f"{S3_PREFIX}/{version}".lstrip("/")
-#             else:
-#                 prefix = S3_PREFIX
-#             s3_key = f"{prefix}/{path_obj.name}".lstrip("/")
-#         elif relative_to:
-#             relative_path = Path(file_path).relative_to(relative_to)
-#             s3_key = f"{S3_PREFIX}/{relative_path}".lstrip("/")
-#         else:
-#             s3_key = f"{S3_PREFIX}/{path_obj.name}".lstrip("/")
-
-#         print(f"\n📤 [{i+1}/{len(file_paths)}] {path_obj.name}")
-#         print(f"   → Clé S3: {s3_key}")
-
-#         if s3_key in existing_keys and not overwrite:
-#             print(f"   ⏭️  Fichier déjà présent, ignoré")
-#             skipped.append(file_path)
-#             continue
-
-#         try:
-#             start_time = time.time()
-#             file_size = os.path.getsize(file_path) / (1024**2)
-
-#             s3.upload_file(
-#                 str(file_path),
-#                 S3_BUCKET,
-#                 s3_key,
-#                 ExtraArgs={'ContentType': get_content_type(path_obj.name)}
-#             )
-
-#             elapsed = time.time() - start_time
-#             speed = file_size / elapsed
-#             print(f"   ✅ Upload: {round(file_size, 2)} MB en {round(elapsed, 2)}s @ {round(speed, 2)} MB/s")
-
-#             # URL stable du fichier
-#             url = f"{S3_ENDPOINT.rstrip('/')}/{S3_BUCKET}/{s3_key}"
-#             print(f"   🔗 URL: {url}")
-
-#         except Exception as e:
-#             not_uploaded.append(file_path)
-#             print(f"   ❌ Erreur: {str(e)}")
-
-#     print("\nRÉSUMÉ")
-#     uploaded_count = len(file_paths) - len(not_uploaded) - len(skipped)
-#     print(f"   - {uploaded_count}/{len(file_paths)} fichier(s) uploadés")
-#     if skipped:
-#         print(f"   - ⏭️  {len(skipped)} fichier(s) ignorés")
-#     if not_uploaded:
-#         print(f"   - ⚠️  {len(not_uploaded)} échec(s)")
-
-#     return not_uploaded
-
 
 def delete_s3_files(keys: list,
                     S3_BUCKET: str,

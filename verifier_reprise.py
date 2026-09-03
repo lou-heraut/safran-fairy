@@ -40,24 +40,37 @@ def charger_config():
     return config, Path("resources")
 
 
+def _empreintes_sorties(dossier):
+    """Nom et date de chaque sortie, pour voir si l'assemblage a vraiment travaillé."""
+    return {f.name: f.stat().st_mtime_ns for f in Path(dossier).glob("*.nc")}
+
+
 def tour(bac, config, resources_dir, attendu):
-    """Un passage complet, et ce qu'il a réellement fait."""
+    """
+    Un passage complet, et ce qu'il a réellement fait.
+
+    Ce qui est observé vient des valeurs de retour et des dates de fichiers,
+    jamais des messages affichés : un test qui lit la sortie casse au premier
+    changement de formulation sans que rien de réel n'ait bougé.
+    """
     sources = sorted(Path(bac / "dl").glob("*.csv.gz"))
+    avant = _empreintes_sorties(bac / "out")
+
     tampon = io.StringIO()
     with contextlib.redirect_stdout(tampon):
-        process(sources, bac / "dl", bac / "raw", bac / "split", bac / "conv",
-                resources_dir / config["METADATA_VARIABLES_FILE"],
-                METADATA_GRID_FILE=resources_dir / config["METADATA_GRID_FILE"],
-                variables=[VARIABLE])
+        traitees = process(sources, bac / "dl", bac / "raw", bac / "split",
+                           bac / "conv",
+                           resources_dir / config["METADATA_VARIABLES_FILE"],
+                           METADATA_GRID_FILE=resources_dir / config["METADATA_GRID_FILE"],
+                           variables=[VARIABLE])
         sorties = build(bac / "conv", bac / "out", variables=[VARIABLE])
         rejets = check(sorties)
-    texte = tampon.getvalue()
 
+    apres = _empreintes_sorties(bac / "out")
     obtenu = {
-        "converties": texte.count("Conversion NetCDF"),
-        "sautees": texte.count("déjà converti"),
-        "assemblage": "refait" if "déjà à jour" not in texte.split("ASSEMBLAGE")[-1]
-                      else "sauté",
+        "converties": len(traitees),
+        "sautees": len(sources) - len(traitees),
+        "assemblage": "refait" if apres != avant else "sauté",
         "controle": "rejeté" if rejets else "ok",
     }
     ecarts = {k: (v, obtenu[k]) for k, v in attendu.items() if obtenu[k] != v}

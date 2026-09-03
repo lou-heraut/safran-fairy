@@ -14,7 +14,8 @@ from pathlib import Path
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from art import tprint
+
+from .report import banner, humain, line, phase, summary
 
 
 ID_COLUMNS = ["LAMBX", "LAMBY", "DATE"]
@@ -41,7 +42,6 @@ def split_file(input_file, SPLIT_DIR, variables: list[str] | None = None,
     SPLIT_DIR.mkdir(parents=True, exist_ok=True)
     base_name = input_file.stem
 
-    print(f"\n✂️  Découpage : {input_file.name}")
 
     header = pd.read_csv(input_file, sep=";", nrows=0)
     available = [c for c in header.columns if c not in ID_COLUMNS]
@@ -54,8 +54,6 @@ def split_file(input_file, SPLIT_DIR, variables: list[str] | None = None,
         if manquantes:
             raise RuntimeError(f"{input_file.name} : variable(s) absente(s) "
                                f"du CSV : {', '.join(manquantes)}")
-
-    print(f"   → {len(wanted)} variable(s) sur {len(available)} : {', '.join(wanted)}")
 
     outputs = {var: SPLIT_DIR / f"{var}_{base_name}.parquet" for var in wanted}
     writers: dict[str, pq.ParquetWriter] = {}
@@ -75,13 +73,12 @@ def split_file(input_file, SPLIT_DIR, variables: list[str] | None = None,
         for writer in writers.values():
             writer.close()
 
-    for var in wanted:
-        print(f"   💾 {outputs[var].name}")
     return list(outputs.values())
 
 
 def split(RAW_DIR, SPLIT_DIR, decompressed_files=None,
-          variables: list[str] | None = None) -> list[Path]:
+          variables: list[str] | None = None,
+          verbose: bool = True) -> list[Path]:
     """
     Découpe les CSV bruts en fichiers Parquet, un par variable et par fichier source.
 
@@ -95,21 +92,23 @@ def split(RAW_DIR, SPLIT_DIR, decompressed_files=None,
     Returns:
         list[Path]: à plat, tous les fichiers Parquet écrits.
     """
-    tprint("split", "small")
-
     Path(SPLIT_DIR).mkdir(parents=True, exist_ok=True)
     if decompressed_files is None:
         decompressed_files = sorted(Path(RAW_DIR).glob("*.csv"))
 
-    print("DÉCOUPAGE")
-    print(f"   → {len(decompressed_files)} fichier(s) source")
+    if verbose:
+        banner("split")
+        phase("DÉCOUPAGE", f"{len(decompressed_files)} fichier(s) source")
 
     splited_files: list[Path] = []
     for i, file in enumerate(decompressed_files, 1):
-        print(f"\n[{i}/{len(decompressed_files)}]", end="")
-        splited_files += split_file(file, SPLIT_DIR, variables=variables)
+        ecrits = split_file(file, SPLIT_DIR, variables=variables)
+        splited_files += ecrits
+        if verbose:
+            line(f"[{i}/{len(decompressed_files)}] {Path(file).name} → "
+                 f"{len(ecrits)} variable(s)")
 
-    print("\nRÉSUMÉ")
-    print(f"   - {len(splited_files)} fichier(s) Parquet écrits")
-    print(f"   - 📁 Dossier : {os.path.abspath(SPLIT_DIR)}")
+    if verbose:
+        summary(parquet=len(splited_files),
+                volume=humain(sum(f.stat().st_size for f in splited_files)))
     return splited_files

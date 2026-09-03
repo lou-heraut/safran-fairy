@@ -121,6 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
+    total = report.Chrono().__enter__()
 
     etapes = ["download", "decompress", "split", "convert",
               "build", "check", "upload", "ui"]
@@ -187,7 +188,8 @@ def main() -> None:
                                       S3_BUCKET=S3_BUCKET,
                                       S3_PREFIX="data/" + S3_DATA_PREFIX,
                                       **S3_CREDENTIALS)
-        print(f"\nENVOI\n   → {len(a_envoyer)} à envoyer, {len(a_jour)} déjà en ligne")
+        report.phase("ENVOI", f"{len(a_envoyer)} à envoyer, "
+                              f"{len(a_jour)} déjà en ligne à l'identique")
         if a_envoyer:
             not_uploaded = upload_s3(local_paths=a_envoyer,
                                      S3_BUCKET=S3_BUCKET,
@@ -231,7 +233,8 @@ def main() -> None:
             print(f"\n   {len(obsoletes)} objet(s) de catalogue obsolète(s) à retirer")
             delete_s3_files(obsoletes, S3_BUCKET=S3_BUCKET, **S3_CREDENTIALS)
 
-    print("\n✨ Pipeline terminé")
+    print()
+    report.phase("TERMINÉ", f"en {total}")
 
 
 if __name__ == "__main__":

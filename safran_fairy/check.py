@@ -18,7 +18,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
-from art import tprint
+
+from .report import banner, detail, line, phase, summary
 
 from .tools import parse_filename
 
@@ -187,7 +188,7 @@ def check(paths=None, OUTPUT_DIR=None) -> list[Path]:
         list[Path]: les fichiers qui ont échoué. Liste vide si tout est sain.
                     L'appelant ne doit rien publier si elle ne l'est pas.
     """
-    tprint("check", "small")
+    banner("check")
 
     if paths is None:
         if OUTPUT_DIR is None:
@@ -195,24 +196,21 @@ def check(paths=None, OUTPUT_DIR=None) -> list[Path]:
         paths = sorted(Path(OUTPUT_DIR).glob("*.nc"))
     paths = [Path(p) for p in paths]
 
-    print("CONTRÔLE")
-    print(f"   → {len(paths)} fichier(s) à contrôler")
+    phase("CONTRÔLE", f"{len(paths)} fichier(s)")
 
     failed = []
     for i, path in enumerate(paths, 1):
         problems = check_file(path)
         if problems:
             failed.append(path)
-            print(f"\n[{i}/{len(paths)}] ❌ {path.name}")
+            line(f"❌ {path.name}")
             for problem in problems:
-                print(f"   - {problem}")
+                detail(f"- {problem}")
         else:
-            print(f"\n[{i}/{len(paths)}] ✅ {path.name}")
+            line(f"✅ {path.name}")
 
-    print("\nRÉSUMÉ")
-    print(f"   - ✅ Sains : {len(paths) - len(failed)}")
-    print(f"   - ❌ Rejetés : {len(failed)}")
+    summary(sains=len(paths) - len(failed), rejetes=len(failed))
     if failed:
-        print("   - ⚠️  Aucune publication ne doit avoir lieu")
+        line("⚠️  aucune publication ne doit avoir lieu")
 
     return failed

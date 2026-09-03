@@ -20,6 +20,8 @@ from pathlib import Path
 import boto3
 import pandas as pd
 
+from .report import banner, line, phase, summary
+
 from .convert import regular_axes
 from .tools import parse_filename
 
@@ -272,6 +274,9 @@ def generate_stac_catalog(CATALOG_DIR,
     Returns:
         list[Path]: les fichiers JSON écrits.
     """
+    banner("catalog")
+    phase("CATALOGUE STAC")
+
     base_url = f"{S3_ENDPOINT.rstrip('/')}/{S3_BUCKET}"
     dataset = S3_PREFIX.strip("/").split("/")[-1] if S3_PREFIX else "dataset"
     urls = {"base": f"{base_url}/stac-data/{dataset}",
@@ -302,7 +307,7 @@ def generate_stac_catalog(CATALOG_DIR,
                             "created": f"{obj['LastModified']:%Y-%m-%dT%H:%M:%SZ}"}
 
     if not retenus:
-        print("⚠️  aucun fichier reconnu sur le bucket")
+        line("⚠️  aucun fichier reconnu sur le bucket")
         return []
 
     # Empreinte calculée sur la copie locale, quand elle correspond à l'octet près.
@@ -345,6 +350,5 @@ def generate_stac_catalog(CATALOG_DIR,
         ecrits.append(chemin)
 
     avec_empreinte = sum(1 for f in retenus.values() if f.get("checksum"))
-    print(f"✅ catalogue STAC {STAC_VERSION} : 1 catalogue racine, 1 collection, "
-          f"{len(items)} item(s), {avec_empreinte} empreinte(s)")
+    summary(version=STAC_VERSION, items=len(items), empreintes=avec_empreinte)
     return ecrits

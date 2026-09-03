@@ -13,8 +13,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
-from art import tprint
 from pyproj import CRS
+
+from .report import banner, humain, line, phase, summary
 
 
 # Storage layout of the produced NetCDF, in (time, y, x). The spatial tile is
@@ -147,16 +148,12 @@ def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE,
                                      index_col='variable')
     
     var = file.stem.split('_QUOT_SIM2')[0]
-    print(f"\n🌐 Conversion NetCDF: {file.name}")
-    print(f"   → variable: {var}")
     
     data = pd.read_parquet(file)
     data = data.rename(columns={"LAMBX": "L2_X", "LAMBY": "L2_Y", "DATE": "time"})
     data['L2_X'] = data['L2_X'] * 100
     data['L2_Y'] = data['L2_Y'] * 100
     data['time'] = pd.to_datetime(data['time'], format='%Y%m%d')
-    
-    print(f"   → {len(data['time'].unique())} pas de temps | {data['L2_X'].nunique()}x{data['L2_Y'].nunique()} points de grille")
     
     ds = (data.set_index(['time', 'L2_Y', 'L2_X'])
               .to_xarray()
@@ -240,10 +237,8 @@ def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE,
     
     if METADATA_GRID_FILE:
         x, y = regular_axes(METADATA_GRID_FILE)
-        manquantes = len(x) - ds.sizes['x'], len(y) - ds.sizes['y']
-        if any(manquantes):
-            print(f"   → grille complétée : {manquantes[0]} colonne(s) et "
-                  f"{manquantes[1]} ligne(s) sans aucun point")
+        # La grille vient de la référence : une colonne du rectangle ne porte
+        # aucun point, et la déduire des données la ferait disparaître.
         ds = ds.reindex(x=x, y=y)
         ds = add_lat_lon(ds, METADATA_GRID_FILE)
     if var in metadata_variables.index:
@@ -268,13 +263,12 @@ def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE,
     encoding = {k: v for k, v in encoding.items() if k in ds.variables}
     
     ds.to_netcdf(output_file, encoding=encoding, unlimited_dims=['time'])
-    print(f"   💾 {output_file.name}")
-    
     return output_file
 
 
 def convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE,
-            splited_files=None, METADATA_GRID_FILE=None):
+            splited_files=None, METADATA_GRID_FILE=None,
+            verbose: bool = True):
     """
     Convertit les fichiers Parquet en fichiers NetCDF géoréférencés.
 
@@ -301,19 +295,19 @@ def convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE,
     if splited_files is None:
         splited_files = sorted(Path(SPLIT_DIR).glob("*.parquet"))
 
-    tprint("convert", "small")
-    print("CONVERSION")
-        
+    if verbose:
+        banner("convert")
+        phase("CONVERSION", f"{len(splited_files)} fichier(s)")
+
     converted_files = []
     for i, file in enumerate(splited_files, start=1):
-        print(f"\n[{i}/{len(splited_files)}]")
-        output_file = create_netcdf(file, CONVERT_DIR,
-                                    METADATA_VARIABLES_FILE,
+        output_file = create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE,
                                     METADATA_GRID_FILE)
         converted_files.append(output_file)
-        
-    print("\nRÉSUMÉ")
-    print(f"   - {len(converted_files)} fichier(s) converti(s)")
-    print(f"   - 📁 Dossier: {os.path.abspath(CONVERT_DIR)}")
-        
+        if verbose:
+            line(f"[{i}/{len(splited_files)}] {output_file.name}")
+
+    if verbose:
+        summary(netcdf=len(converted_files),
+                volume=humain(sum(f.stat().st_size for f in converted_files)))
     return converted_files

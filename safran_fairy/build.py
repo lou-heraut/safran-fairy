@@ -28,7 +28,8 @@ import netCDF4
 
 import pandas as pd
 import xarray as xr
-from art import tprint
+
+from .report import Chrono, banner, humain, line, phase, summary
 
 from .tools import build_filename
 
@@ -157,7 +158,7 @@ def build_variable(variable: str, entry: dict, OUTPUT_DIR: Path,
     target = OUTPUT_DIR / build_filename(
         variable, f"{_first_day(ordered[0]):%Y%m%d}", f"{fin:%Y%m%d}")
     if not force and _up_to_date(target, inputs):
-        print(f"\n⏭️  {variable} : déjà à jour, {target.name}")
+        line(f"{variable:12s} déjà à jour, {target.name}")
         return target
 
     pieces = list(ordered)
@@ -167,23 +168,19 @@ def build_variable(variable: str, entry: dict, OUTPUT_DIR: Path,
         if tail:
             pieces.append(tail)
 
-    apport = ""
-    if tail:
-        debut, fin = _bounds(tail)
-        apport = f", glissant du {debut} au {fin}"
-    print(f"\n🧩 {variable} : {len(ordered)} année(s) "
-          f"({min(years)} à {max(years)}){apport}")
-
     tmp = OUTPUT_DIR / f"{variable}_QUOT_SIM2_tmp.nc"
-    _run(["ncrcat", "-h", "-O"] + [str(p) for p in pieces] + [str(tmp)])
-    if tail:
-        tail.unlink(missing_ok=True)
+    with Chrono() as chrono:
+        _run(["ncrcat", "-h", "-O"] + [str(p) for p in pieces] + [str(tmp)])
+        if tail:
+            tail.unlink(missing_ok=True)
+        _stamp_provenance(tmp, sorted(years), tail)
+        date_debut, date_fin = _bounds(tmp)
+        output = OUTPUT_DIR / build_filename(variable, date_debut, date_fin)
+        tmp.replace(output)
 
-    _stamp_provenance(tmp, sorted(years), tail)
-    date_debut, date_fin = _bounds(tmp)
-    output = OUTPUT_DIR / build_filename(variable, date_debut, date_fin)
-    tmp.replace(output)
-    print(f"   💾 {output.name}")
+    apport = " + glissant" if tail else ""
+    line(f"{variable:12s} {len(ordered):2d} année(s){apport:11s} "
+         f"{humain(output.stat().st_size):>8s}   {chrono}   {output.name}")
     return output
 
 
@@ -202,7 +199,7 @@ def build(CONVERT_DIR, OUTPUT_DIR, variables: list[str] | None = None,
     Returns:
         list[Path]: les fichiers assemblés, un par variable.
     """
-    tprint("build", "small")
+    banner("build")
 
     OUTPUT_DIR = Path(OUTPUT_DIR)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -214,16 +211,15 @@ def build(CONVERT_DIR, OUTPUT_DIR, variables: list[str] | None = None,
             raise RuntimeError(f"absente(s) du cache : {', '.join(inconnues)}")
         found = {v: found[v] for v in variables}
 
-    print("ASSEMBLAGE")
-    print(f"   → {len(found)} variable(s) : {', '.join(sorted(found))}")
+    phase("ASSEMBLAGE", f"{len(found)} variable(s)")
 
     built = []
-    for i, variable in enumerate(sorted(found), 1):
-        print(f"\n[{i}/{len(found)}]", end="")
-        built.append(build_variable(variable, found[variable], OUTPUT_DIR,
-                                    force=force))
+    with Chrono() as total:
+        for variable in sorted(found):
+            built.append(build_variable(variable, found[variable], OUTPUT_DIR,
+                                        force=force))
 
-    print("\nRÉSUMÉ")
-    print(f"   - {len(built)} fichier(s) assemblé(s)")
-    print(f"   - 📁 Dossier : {os.path.abspath(OUTPUT_DIR)}")
+    summary(sorties=len(built),
+            volume=humain(sum(f.stat().st_size for f in built)),
+            duree=str(total))
     return built

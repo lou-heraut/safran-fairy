@@ -18,7 +18,8 @@ from collections import defaultdict
 from pathlib import Path
 
 import boto3
-from art import tprint
+
+from .report import banner, line, phase, summary
 
 from .tools import parse_filename
 
@@ -62,12 +63,12 @@ def clean_local(directory, keep: list[Path] | None = None) -> list[Path]:
         for entry in _superseded(entries):
             if entry["path"].resolve() in protected:
                 continue
-            print(f"   🗑️  {entry['path'].name}")
+            line(f"🗑️  {entry['path'].name}")
             entry["path"].unlink()
             removed.append(entry["path"])
 
-    print(f"\nNETTOYAGE LOCAL : {len(removed)} fichier(s) supprimé(s) "
-          f"dans {os.path.abspath(directory)}")
+    if removed:
+        summary(supprimes=len(removed), dossier=os.path.abspath(directory))
     return removed
 
 
@@ -83,7 +84,7 @@ def clean_s3(S3_BUCKET: str,
     Returns:
         list[str]: les clés supprimées.
     """
-    tprint("clean", "small")
+    banner("clean")
 
     s3 = boto3.client("s3",
                       aws_access_key_id=S3_ACCESS_KEY,
@@ -91,8 +92,7 @@ def clean_s3(S3_BUCKET: str,
                       endpoint_url=S3_ENDPOINT,
                       region_name=S3_REGION)
 
-    print("NETTOYAGE S3")
-    print(f"   Bucket : {S3_BUCKET}/{S3_PREFIX}")
+    phase("NETTOYAGE S3", f"{S3_BUCKET}/{S3_PREFIX}")
 
     groups: dict[tuple, list[dict]] = defaultdict(list)
     paginator = s3.get_paginator("list_objects_v2")
@@ -110,10 +110,10 @@ def clean_s3(S3_BUCKET: str,
         for entry in _superseded(entries):
             try:
                 s3.delete_object(Bucket=S3_BUCKET, Key=entry["key"])
-                print(f"   🗑️  {Path(entry['key']).name}")
+                line(f"🗑️  {Path(entry['key']).name}")
                 removed.append(entry["key"])
             except Exception as error:
-                print(f"   ❌ {Path(entry['key']).name} : {error}")
+                line(f"❌ {Path(entry['key']).name} : {error}")
 
-    print(f"\n📊 {len(removed)} objet(s) supprimé(s)")
+    summary(supprimes=len(removed))
     return removed

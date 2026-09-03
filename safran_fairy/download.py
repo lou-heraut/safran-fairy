@@ -14,7 +14,9 @@ from datetime import datetime
 from pathlib import Path
 
 import requests
-from art import tprint
+
+from .report import (Chrono, banner, humain, is_terminal, line,
+                     phase, summary)
 
 from .sources import Resource, check_inventory, describe, list_resources
 
@@ -69,8 +71,7 @@ def download_file(resource: Resource, DOWNLOAD_DIR) -> dict | None:
     """
     path = local_path(resource, DOWNLOAD_DIR)
     partial = path.with_suffix(path.suffix + ".part")
-
-    print(f"\n📥 Téléchargement : {resource.filename}")
+    anime = is_terminal()
 
     try:
         response = requests.get(resource.url, stream=True, timeout=60)
@@ -84,17 +85,21 @@ def download_file(resource: Resource, DOWNLOAD_DIR) -> dict | None:
                     continue
                 f.write(chunk)
                 written += len(chunk)
-                if expected:
-                    print(f"   {written / expected * 100:5.1f} %"
-                          f"  {written / 1e6:8.1f} Mo", end="\r")
+                # Une progression animée n'a de sens que sur un terminal :
+                # dans un journal, le retour chariot empile au lieu d'effacer.
+                if expected and anime:
+                    print(f"   {resource.filename} {written / expected * 100:5.1f} %",
+                          end="\r", flush=True)
 
         if expected and written != expected:
             partial.unlink(missing_ok=True)
-            print(f"\n   ❌ Incomplet : {written} octets reçus sur {expected}")
+            line(f"❌ {resource.filename} incomplet, "
+                 f"{humain(written)} reçus sur {humain(expected)}")
             return None
 
         partial.replace(path)
-        print(f"\n   ✅ {written / 1e6:.1f} Mo")
+        if anime:
+            print(" " * 60, end="\r")
 
         return {
             "filename": resource.filename,
@@ -105,7 +110,7 @@ def download_file(resource: Resource, DOWNLOAD_DIR) -> dict | None:
 
     except Exception as error:
         partial.unlink(missing_ok=True)
-        print(f"\n   ❌ Erreur : {error}")
+        line(f"❌ {resource.filename} : {error}")
         return None
 
 
@@ -128,10 +133,10 @@ def remove_orphans(resources: list[Resource], DOWNLOAD_DIR) -> list[Path]:
         return []
 
     poids = sum(f.stat().st_size for f in orphelins)
-    print(f"\nNETTOYAGE\n   → {len(orphelins)} fichier(s) que l'amont ne publie "
-          f"plus, {poids / 1e9:.2f} Go")
+    phase("NETTOYAGE", f"{len(orphelins)} fichier(s) que l'amont ne publie plus, "
+                       f"{humain(poids)}")
     for f in orphelins:
-        print(f"   🗑️  {f.name}")
+        line(f"🗑️  {f.name}")
         f.unlink()
     return orphelins
 
@@ -158,20 +163,19 @@ def download(STATE_FILE, DOWNLOAD_DIR, METEO_BASE_URL, METEO_DATASET_ID,
                       attendu. Mieux vaut s'arrêter que produire une chronique
                       tronquée en silence.
     """
-    tprint("download", "small")
+    banner("download")
 
     Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
     if resources is None:
         resources = list_resources(METEO_BASE_URL, METEO_DATASET_ID)
 
-    print("INVENTAIRE")
-    print(f"   → {describe(resources)}")
+    phase("INVENTAIRE", describe(resources))
 
     anomalies = check_inventory(resources)
     if anomalies:
         for anomalie in anomalies:
-            print(f"   ❌ {anomalie}")
+            line(f"❌ {anomalie}")
         raise RuntimeError("l'inventaire amont ne correspond plus au format attendu")
 
     remove_orphans(resources, DOWNLOAD_DIR)
@@ -180,31 +184,30 @@ def download(STATE_FILE, DOWNLOAD_DIR, METEO_BASE_URL, METEO_DATASET_ID,
     to_download = [r for r in resources if has_changed(r, state, DOWNLOAD_DIR)]
     volume = sum(r.size or 0 for r in to_download)
 
-    print(f"   → {len(to_download)} à télécharger ({volume / 1e9:.2f} Go), "
+    phase("TÉLÉCHARGEMENT",
+          f"{len(to_download)} à prendre ({humain(volume)}), "
           f"{len(resources) - len(to_download)} déjà à jour")
 
     if not to_download:
-        print("\n✨ Tous les fichiers sont à jour")
         return []
 
-    print("\nTÉLÉCHARGEMENT")
     downloaded, failed = [], []
-    for i, resource in enumerate(to_download, 1):
-        print(f"\n[{i}/{len(to_download)}]")
-        result = download_file(resource, DOWNLOAD_DIR)
-        if result:
-            state[resource.id] = result
-            save_state(state, STATE_FILE)
-            downloaded.append(resource)
-        else:
-            failed.append(resource)
+    with Chrono() as total:
+        for i, resource in enumerate(to_download, 1):
+            with Chrono() as chrono:
+                result = download_file(resource, DOWNLOAD_DIR)
+            if result:
+                state[resource.id] = result
+                save_state(state, STATE_FILE)
+                downloaded.append(resource)
+                line(f"[{i}/{len(to_download)}] {resource.filename:32s} "
+                     f"{humain(result['size_bytes']):>8s}   {chrono}")
+            else:
+                failed.append(resource)
 
-    print("\nRÉSUMÉ")
-    print(f"   - ✅ Réussis : {len(downloaded)}")
-    print(f"   - ❌ Échecs : {len(failed)}")
-    for resource in failed:
-        print(f"        {resource.filename}")
-    print(f"   - 📁 Dossier : {os.path.abspath(DOWNLOAD_DIR)}")
+    summary(pris=len(downloaded), echecs=len(failed),
+            volume=humain(sum(r.size or 0 for r in downloaded)),
+            duree=str(total))
 
     data = [r for r in downloaded if r.is_data]
     return sorted(data, key=lambda r: (r.kind == "rolling", r.year or 0))
