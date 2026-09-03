@@ -92,6 +92,60 @@ def list_s3_files(S3_BUCKET: str,
     return files
 
 
+def to_upload(local_paths: list,
+              S3_BUCKET: str,
+              S3_PREFIX: str = "",
+              S3_ACCESS_KEY: str = None,
+              S3_SECRET_KEY: str = None,
+              S3_ENDPOINT: str = None,
+              S3_REGION: str = None) -> tuple:
+    """
+    Départage les fichiers à envoyer de ceux que le bucket a déjà.
+
+    La décision se prend en regardant le bucket, jamais le fait qu'on vienne ou
+    non de reconstruire : sinon un envoi ayant échoué la veille ne serait jamais
+    rattrapé, et l'assemblage sautant désormais ce qui est à jour, plus rien ne
+    le corrigerait.
+
+    Args:
+        local_paths (list[Path]): fichiers candidats à l'envoi.
+
+    Returns:
+        tuple[list[Path], list[Path]]: ceux à envoyer, ceux déjà à jour.
+
+    Notes:
+        - La comparaison porte sur la présence et la taille. L'ETag ne peut pas
+          servir : boto3 envoie ces fichiers en plusieurs parties, et l'ETag
+          n'est alors pas la somme MD5 du contenu.
+        - Deux contenus différents de taille rigoureusement identique passeraient
+          au travers. Sur des NetCDF compressés de plusieurs centaines de méga-
+          octets c'est hautement improbable, mais ce n'est pas une preuve : la
+          comparaison deviendra exacte quand le catalogue portera « file:checksum ».
+    """
+    s3 = boto3.client('s3',
+                      aws_access_key_id=S3_ACCESS_KEY,
+                      aws_secret_access_key=S3_SECRET_KEY,
+                      endpoint_url=S3_ENDPOINT,
+                      region_name=S3_REGION)
+
+    distant = {}
+    prefix = S3_PREFIX.strip("/") + "/" if S3_PREFIX else ""
+    for page in s3.get_paginator('list_objects_v2').paginate(Bucket=S3_BUCKET,
+                                                             Prefix=prefix):
+        for obj in page.get('Contents', []):
+            distant[Path(obj['Key']).name] = obj['Size']
+
+    a_envoyer, a_jour = [], []
+    for path in local_paths:
+        path = Path(path)
+        taille = distant.get(path.name)
+        if taille is None or taille != path.stat().st_size:
+            a_envoyer.append(path)
+        else:
+            a_jour.append(path)
+    return a_envoyer, a_jour
+
+
 def get_content_type(filename: str) -> str:
     content_type, _ = mimetypes.guess_type(filename)
     return content_type or "application/octet-stream"

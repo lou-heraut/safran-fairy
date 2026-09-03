@@ -418,9 +418,20 @@ morts dès l'étape suivante.
       annuel rafraîchi est réécrit, donc plus récent, donc on reconstruit.
       Vérifié dans les trois cas, premier passage, relance à vide, et relance
       après modification d'une entrée.
-- [ ] la décision d'**envoyer** doit se prendre en comparant au bucket et non au
-      fait qu'on vienne de reconstruire, sans quoi un envoi ayant échoué la
-      veille ne serait jamais rattrapé. Pas encore fait.
+- [x] la décision d'**envoyer** se prend en comparant au bucket, dans
+      `to_upload()`, et non au fait qu'on vienne de reconstruire : l'assemblage
+      sautant désormais ce qui est à jour, un envoi ayant échoué la veille ne
+      serait autrement jamais rattrapé. Vérifié sur trois cas contre le bucket
+      réel, fichier absent, fichier présent de taille différente, fichier
+      présent et identique. La purge des versions périmées tourne même quand
+      rien n'a été envoyé.
+- [ ] la comparaison porte sur la présence et la taille. L'ETag ne peut pas
+      servir, boto3 envoyant ces fichiers en plusieurs parties, auquel cas il
+      n'est plus la somme MD5 du contenu. Deux contenus de taille rigoureusement
+      identique passeraient donc au travers : hautement improbable sur des
+      NetCDF compressés de centaines de mégaoctets, mais ce n'est pas une
+      preuve. **La comparaison deviendra exacte quand le catalogue portera
+      `file:checksum`**, qui est déjà au programme de la phase 5.
 - [ ] mesurer le rebuild complet des 26 variables. Le découpage domine, 4 min 43
       sur une variable, mais le CSV n'est lu qu'une fois : le facteur ne sera
       pas 26. Chiffre à établir, pas à supposer.

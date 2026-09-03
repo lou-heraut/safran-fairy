@@ -25,7 +25,7 @@ from .check import check, check_file
 from .clean import clean_local, clean_s3
 from .tools import build_filename, parse_filename
 from .upload_s3 import (apply_s3_bucket_cors, apply_s3_bucket_policy,
-                        delete_s3_files, list_s3_files, upload_s3)
+                        delete_s3_files, list_s3_files, to_upload, upload_s3)
 from .catalog import generate_stac_catalog
 
 __all__ = [
@@ -36,6 +36,6 @@ __all__ = [
     "clean_local", "clean_s3",
     "parse_filename", "build_filename",
     "apply_s3_bucket_policy", "apply_s3_bucket_cors", "list_s3_files",
-    "upload_s3", "delete_s3_files",
+    "upload_s3", "delete_s3_files", "to_upload",
     "generate_stac_catalog",
 ]

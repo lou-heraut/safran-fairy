@@ -67,7 +67,7 @@ if MODE == "dev":
 from safran_fairy import (apply_s3_bucket_cors, apply_s3_bucket_policy, build,
                           check, clean_local, clean_s3, convert, decompress,
                           download, generate_stac_catalog, is_data_filename,
-                          split, upload_s3)
+                          split, to_upload, upload_s3)
 
 S3_CREDENTIALS = dict(S3_ACCESS_KEY=os.getenv("S3_ACCESS_KEY"),
                       S3_SECRET_KEY=os.getenv("S3_SECRET_KEY"),
@@ -211,14 +211,23 @@ def main() -> None:
     if args.upload:
         if outputs is None:
             outputs = sorted(Path(OUTPUT_DIR).glob("*.nc"))
-        not_uploaded = upload_s3(local_paths=outputs,
-                                 S3_BUCKET=S3_BUCKET,
-                                 s3_paths=[Path(p).name for p in outputs],
-                                 S3_PREFIX="data/" + S3_DATA_PREFIX,
-                                 **S3_CREDENTIALS)
-        if not_uploaded:
-            sys.exit(1)
-        # Only once the new files are online.
+        # Compared against the bucket and not against what this run rebuilt: an
+        # upload that failed yesterday must still be caught up today.
+        a_envoyer, a_jour = to_upload(local_paths=outputs,
+                                      S3_BUCKET=S3_BUCKET,
+                                      S3_PREFIX="data/" + S3_DATA_PREFIX,
+                                      **S3_CREDENTIALS)
+        print(f"\nENVOI\n   → {len(a_envoyer)} à envoyer, {len(a_jour)} déjà en ligne")
+        if a_envoyer:
+            not_uploaded = upload_s3(local_paths=a_envoyer,
+                                     S3_BUCKET=S3_BUCKET,
+                                     s3_paths=[Path(p).name for p in a_envoyer],
+                                     S3_PREFIX="data/" + S3_DATA_PREFIX,
+                                     **S3_CREDENTIALS)
+            if not_uploaded:
+                sys.exit(1)
+        # Purging runs even when nothing was sent: superseded versions may still
+        # be online from an earlier run.
         clean_s3(S3_BUCKET=S3_BUCKET, S3_PREFIX="data/" + S3_DATA_PREFIX,
                  **S3_CREDENTIALS)
 
