@@ -72,6 +72,11 @@ def _last_day(path: Path) -> pd.Timestamp:
         return pd.Timestamp(ds.time.max().values)
 
 
+def _first_day(path: Path) -> pd.Timestamp:
+    with xr.open_dataset(path) as ds:
+        return pd.Timestamp(ds.time.min().values)
+
+
 def _stamp_provenance(path: Path, years: list[int], tail: Path | None) -> None:
     """
     Rewrite the global attributes ncrcat inherited from its first input.
@@ -113,7 +118,23 @@ def _rolling_tail(rolling: Path, after: pd.Timestamp, work_dir: Path) -> Path | 
     return tail
 
 
-def build_variable(variable: str, entry: dict, OUTPUT_DIR: Path) -> Path:
+def _up_to_date(target: Path, inputs: list[Path]) -> bool:
+    """
+    Whether an already assembled file can be left alone.
+
+    The name alone never settles it: it only carries the first and last day, and
+    Météo-France revises the running year without moving its end date. In July
+    2026 that changed 73 % of the cells while the coverage stayed the same. So a
+    refreshed input, which is rewritten and therefore newer, always wins.
+    """
+    if not target.exists():
+        return False
+    horodatage = target.stat().st_mtime
+    return all(p.stat().st_mtime <= horodatage for p in inputs)
+
+
+def build_variable(variable: str, entry: dict, OUTPUT_DIR: Path,
+                   force: bool = False) -> Path:
     """
     Construit le fichier de sortie d'une variable et rend son chemin.
 
@@ -126,6 +147,18 @@ def build_variable(variable: str, entry: dict, OUTPUT_DIR: Path) -> Path:
 
     ordered = [years[y] for y in sorted(years)]
     last_year_day = _last_day(ordered[-1])
+
+    # The coverage is known before assembling anything: only the time axis of
+    # the last yearly file and of the rolling window is read.
+    fin = last_year_day
+    if entry["rolling"]:
+        fin = max(fin, _last_day(entry["rolling"]))
+    inputs = ordered + ([entry["rolling"]] if entry["rolling"] else [])
+    target = OUTPUT_DIR / build_filename(
+        variable, f"{_first_day(ordered[0]):%Y%m%d}", f"{fin:%Y%m%d}")
+    if not force and _up_to_date(target, inputs):
+        print(f"\n⏭️  {variable} : déjà à jour, {target.name}")
+        return target
 
     pieces = list(ordered)
     tail = None
@@ -154,7 +187,8 @@ def build_variable(variable: str, entry: dict, OUTPUT_DIR: Path) -> Path:
     return output
 
 
-def build(CONVERT_DIR, OUTPUT_DIR, variables: list[str] | None = None) -> list[Path]:
+def build(CONVERT_DIR, OUTPUT_DIR, variables: list[str] | None = None,
+          force: bool = False) -> list[Path]:
     """
     Assemble une chronique continue par variable depuis le cache annuel.
 
@@ -163,6 +197,7 @@ def build(CONVERT_DIR, OUTPUT_DIR, variables: list[str] | None = None) -> list[P
         OUTPUT_DIR (str | Path):         dossier de sortie, créé si absent.
         variables (list[str], optional): variables à assembler. Si None, toutes
                                          celles présentes dans le cache.
+        force (bool): réassembler même si la sortie est déjà à jour.
 
     Returns:
         list[Path]: les fichiers assemblés, un par variable.
@@ -185,7 +220,8 @@ def build(CONVERT_DIR, OUTPUT_DIR, variables: list[str] | None = None) -> list[P
     built = []
     for i, variable in enumerate(sorted(found), 1):
         print(f"\n[{i}/{len(found)}]", end="")
-        built.append(build_variable(variable, found[variable], OUTPUT_DIR))
+        built.append(build_variable(variable, found[variable], OUTPUT_DIR,
+                                    force=force))
 
     print("\nRÉSUMÉ")
     print(f"   - {len(built)} fichier(s) assemblé(s)")

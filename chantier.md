@@ -399,17 +399,28 @@ Empreinte mesurée sur une variable, extrapolée à 26 pour ce qui varie :
 Soit un pic de plus de 78 Go pendant un rebuild complet, dont 44 Go d'artefacts
 morts dès l'étape suivante.
 
-- [ ] **traiter fichier par fichier** : décompresser, découper, convertir, puis
-      supprimer le CSV et le Parquet. Le pic transitoire tombe d'environ 44 Go
-      à moins de 1 Go, et la chaîne devient reprenable là où elle s'est
-      arrêtée. Une dizaine de lignes dans `main.py`. La rejouabilité est
-      intacte : `00_data-download` garde les sources et `03_data-convert` le
-      cache annuel.
-- [ ] **ne pas reconstruire ni redéposer une sortie identique.** Le 3 septembre,
-      le glissant n'apportait aucun jour au-delà du fichier annuel : la sortie
-      aurait été identique à l'octet près, et le pipeline aurait tout de même
-      réécrit et renvoyé 12,7 Go. Règle simple : si le nom cible existe déjà et
-      qu'aucune de ses entrées n'est plus récente que lui, passer.
+- [x] **traitement fichier par fichier**, dans `process_sources()` de
+      `main.py` : décompresser, découper, convertir, puis supprimer le CSV et
+      les Parquet. Vérifié sur trois années réelles, `01_data-raw` et
+      `02_data-split` finissent vides et seul le cache annuel subsiste. Deux
+      garanties tenues par construction : la suppression n'a lieu qu'**après**
+      une conversion réussie, donc un échec laisse le CSV en place pour qu'on
+      puisse regarder, ce qui a été vérifié en provoquant l'échec ; et une
+      reprise saute les sources dont tous les NetCDF annuels existent déjà et
+      sont plus récents que le `.csv.gz`. Les étapes lancées séparément gardent
+      leur comportement d'origine, pour déboguer.
+- [x] **ne pas reconstruire une sortie déjà à jour**, dans `_up_to_date()` de
+      `build.py`. La règle naïve, comparer le nom cible, aurait été **fausse** :
+      le nom ne porte que les dates extrêmes, or Météo-France révise l'année en
+      cours sans en déplacer la date de fin, ce qui a changé 73 % des mailles de
+      juillet 2026. La condition qui tranche est donc la fraîcheur : on saute
+      seulement si aucune entrée n'est plus récente que la sortie. Un fichier
+      annuel rafraîchi est réécrit, donc plus récent, donc on reconstruit.
+      Vérifié dans les trois cas, premier passage, relance à vide, et relance
+      après modification d'une entrée.
+- [ ] la décision d'**envoyer** doit se prendre en comparant au bucket et non au
+      fait qu'on vienne de reconstruire, sans quoi un envoi ayant échoué la
+      veille ne serait jamais rattrapé. Pas encore fait.
 - [ ] mesurer le rebuild complet des 26 variables. Le découpage domine, 4 min 43
       sur une variable, mais le CSV n'est lu qu'une fois : le facteur ne sera
       pas 26. Chiffre à établir, pas à supposer.

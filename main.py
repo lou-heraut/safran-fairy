@@ -66,7 +66,8 @@ if MODE == "dev":
 
 from safran_fairy import (apply_s3_bucket_cors, apply_s3_bucket_policy, build,
                           check, clean_local, clean_s3, convert, decompress,
-                          download, generate_stac_catalog, split, upload_s3)
+                          download, generate_stac_catalog, is_data_filename,
+                          split, upload_s3)
 
 S3_CREDENTIALS = dict(S3_ACCESS_KEY=os.getenv("S3_ACCESS_KEY"),
                       S3_SECRET_KEY=os.getenv("S3_SECRET_KEY"),
@@ -98,6 +99,53 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--variables", nargs="+", metavar="VAR",
                         help="ne traiter que ces variables, ex. --variables TINF_H")
     return parser
+
+
+def wanted_variables(variables):
+    """Les variables demandées, ou toutes celles que le fichier de métadonnées décrit."""
+    if variables:
+        return list(variables)
+    import pandas as pd
+    return list(pd.read_csv(METADATA_VARIABLES_FILE)["variable"])
+
+
+def already_converted(source: Path, variables) -> bool:
+    """Whether every yearly NetCDF of this source exists and is newer than it."""
+    base = source.name[: -len(".csv.gz")]
+    horodatage = source.stat().st_mtime
+    cibles = [Path(CONVERT_DIR) / f"{v}_QUOT_SIM2_{base.split('QUOT_SIM2_')[-1]}.nc"
+              for v in variables]
+    return all(c.exists() and c.stat().st_mtime >= horodatage for c in cibles)
+
+
+def process_sources(sources, variables, overwrite=False):
+    """
+    Décompresse, découpe et convertit, un fichier source à la fois.
+
+    Traiter tout un étage avant de passer au suivant faisait cohabiter 44 Go
+    d'artefacts morts dès l'étape suivante ; en boucle, le pic tombe sous 1 Go.
+    Le CSV et les Parquet ne sont supprimés qu'une fois la conversion réussie,
+    pour qu'un échec laisse de quoi regarder ce qui s'est passé.
+    """
+    demandees = wanted_variables(variables)
+    print(f"\nTRAITEMENT : {len(sources)} fichier(s) source, "
+          f"{len(demandees)} variable(s)")
+
+    for i, source in enumerate(sources, 1):
+        source = Path(source)
+        print(f"\n[{i}/{len(sources)}] {source.name}")
+        if not overwrite and already_converted(source, demandees):
+            print("   ⏭️  déjà converti, ignoré")
+            continue
+
+        csv_files = decompress(DOWNLOAD_DIR, RAW_DIR, [source])
+        parquet_files = split(RAW_DIR, SPLIT_DIR, csv_files, variables=variables)
+        convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE, parquet_files,
+                METADATA_GRID_FILE=METADATA_GRID_FILE)
+
+        # Seulement maintenant : un échec plus haut laisse tout en place.
+        for temporaire in csv_files + parquet_files:
+            Path(temporaire).unlink(missing_ok=True)
 
 
 def main() -> None:
@@ -134,15 +182,21 @@ def main() -> None:
             return
         csv_files = [Path(DOWNLOAD_DIR) / r.filename for r in downloaded]
 
-    if args.decompress:
-        csv_files = decompress(DOWNLOAD_DIR, RAW_DIR, csv_files)
-
-    if args.split:
-        parquet_files = split(RAW_DIR, SPLIT_DIR, csv_files, variables=variables)
-
-    if args.convert:
-        convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE, parquet_files,
-                METADATA_GRID_FILE=METADATA_GRID_FILE)
+    enchaine = args.decompress and args.split and args.convert
+    if enchaine:
+        if csv_files is None:
+            csv_files = sorted(f for f in Path(DOWNLOAD_DIR).glob("*.csv.gz")
+                               if is_data_filename(f.name))
+        process_sources(csv_files, variables)
+    else:
+        # Étapes lancées séparément : comportement inchangé, pour déboguer.
+        if args.decompress:
+            csv_files = decompress(DOWNLOAD_DIR, RAW_DIR, csv_files)
+        if args.split:
+            parquet_files = split(RAW_DIR, SPLIT_DIR, csv_files, variables=variables)
+        if args.convert:
+            convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE, parquet_files,
+                    METADATA_GRID_FILE=METADATA_GRID_FILE)
 
     if args.build:
         outputs = build(CONVERT_DIR, OUTPUT_DIR, variables=variables)
