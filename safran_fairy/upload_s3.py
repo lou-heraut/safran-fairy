@@ -1,15 +1,13 @@
 # SPDX-FileCopyrightText: 2026 Louis Héraut <louis.heraut@inrae.fr>
 # SPDX-License-Identifier: GPL-3.0-or-later
 import os
-import requests
 import json
 import time
 from pathlib import Path
-from .report import banner, humain, line, phase, summary
+from .report import banner, humain, line, summary
 import boto3
 import mimetypes
 
-from .tools import parse_filename
 
     
 def apply_s3_bucket_policy(S3_BUCKET: str,

@@ -172,6 +172,12 @@ python verifier_reprise.py                                          # reprise et
 
 `pyflakes` signale `get_ipython`, qui est normal, il n'existe que sous IPython.
 
+Ne jamais restaurer un fichier depuis une sauvegarde prise avant d'autres
+modifications : une sauvegarde faite pour un essai de régression a effacé en
+silence la refonte des affichages de `process.py`, et le commit a enregistré le
+fichier revenu en arrière. Pour éprouver une régression, casser puis annuler
+avec `git checkout -- <fichier>`, jamais avec une copie.
+
 ```bash
 python main.py --all --variables T          # la chaîne entière, sur une variable
 stac-valid batch $(find 05_catalog -name '*.json')   # zéro invalide attendu

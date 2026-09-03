@@ -5,6 +5,11 @@
 Running a whole stage before moving to the next made 44 Go of intermediates
 coexist, all dead as soon as the next stage had read them. In a loop the peak
 drops below 1 Go, and the chain becomes resumable where it stopped.
+
+The three steps are told to keep quiet: their own banners and summaries were
+written for a run where each happened once, and repeating them for every source
+buries the one thing worth reading. This module reports instead, one line per
+file.
 """
 
 from __future__ import annotations
@@ -15,6 +20,7 @@ import pandas as pd
 
 from .convert import convert
 from .decompress import decompress
+from .report import Chrono, banner, humain, line, phase, summary
 from .split import split
 
 
@@ -58,24 +64,38 @@ def process(sources, DOWNLOAD_DIR, RAW_DIR, SPLIT_DIR, CONVERT_DIR,
           réussie : un échec laisse de quoi regarder ce qui s'est passé.
     """
     demandees = wanted_variables(METADATA_VARIABLES_FILE, variables)
-    print(f"\nTRAITEMENT : {len(sources)} fichier(s) source, "
-          f"{len(demandees)} variable(s)")
+    banner("traitement")
+    phase("TRAITEMENT", f"{len(sources)} fichier(s) source, "
+                        f"{len(demandees)} variable(s)")
 
-    traites = []
-    for i, source in enumerate(sources, 1):
-        source = Path(source)
-        print(f"\n[{i}/{len(sources)}] {source.name}")
-        if not overwrite and already_converted(source, demandees, CONVERT_DIR):
-            print("   ⏭️  déjà converti, ignoré")
-            continue
+    traites, ignores, volume = [], 0, 0
+    with Chrono() as total:
+        for i, source in enumerate(sources, 1):
+            source = Path(source)
+            rang = f"[{i}/{len(sources)}] {source.name:26s}"
 
-        csv_files = decompress(DOWNLOAD_DIR, RAW_DIR, [source])
-        parquet_files = split(RAW_DIR, SPLIT_DIR, csv_files, variables=variables)
-        convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE, parquet_files,
-                METADATA_GRID_FILE=METADATA_GRID_FILE)
+            if not overwrite and already_converted(source, demandees, CONVERT_DIR):
+                ignores += 1
+                line(f"{rang} déjà converti, ignoré")
+                continue
 
-        for temporaire in list(csv_files) + list(parquet_files):
-            Path(temporaire).unlink(missing_ok=True)
-        traites.append(source)
+            with Chrono() as chrono:
+                csv_files = decompress(DOWNLOAD_DIR, RAW_DIR, [source],
+                                       verbose=False)
+                brut = sum(Path(f).stat().st_size for f in csv_files)
+                parquet_files = split(RAW_DIR, SPLIT_DIR, csv_files,
+                                      variables=variables, verbose=False)
+                netcdf = convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE,
+                                 parquet_files,
+                                 METADATA_GRID_FILE=METADATA_GRID_FILE,
+                                 verbose=False)
+                for temporaire in list(csv_files) + list(parquet_files):
+                    Path(temporaire).unlink(missing_ok=True)
 
+            volume += brut
+            traites.append(source)
+            line(f"{rang} {humain(brut):>9s} → {len(netcdf):2d} NetCDF   {chrono}")
+
+    summary(sources=len(sources), traitees=len(traites), ignorees=ignores,
+            lu=humain(volume), duree=str(total))
     return traites

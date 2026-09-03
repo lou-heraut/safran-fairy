@@ -6,7 +6,6 @@ The storage layout is chosen here and inherited by the assembled file, since
 ncrcat takes the chunking of its first input.
 """
 
-import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 

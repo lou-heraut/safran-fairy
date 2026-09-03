@@ -18,7 +18,6 @@ writes a reversed attribute name with NCO 5.2.1. See CLAUDE.md.
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 from datetime import datetime, timedelta, timezone
