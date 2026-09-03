@@ -294,6 +294,30 @@ contre taille, on gagne des deux côtés.
 - [ ] ne pas chercher à optimiser la moyenne sur la France entière : elle lit
       forcément tout le fichier, environ 11 s quel que soit le découpage.
 
+**Le fichier n'était pas géoréférencé pour un SIG**, et deux causes
+indépendantes s'y ajoutaient. Mesuré avec `gdalinfo`, qui lisait les coins en
+coordonnées pixel, de (0,0) à (142,134), au lieu de coordonnées projetées.
+
+D'abord une colonne manquante. La grille SAFRAN comporte une colonne, à
+x = 68 000 m, qui ne porte aucun point ; la construire depuis les données la
+faisait disparaître, rendant l'axe x irrégulier avec un pas de 16 km à cet
+endroit. Les axes sont désormais tirés de la grille de référence, ce qui donne
+143 colonnes au lieu de 142, pour 0,7 % de mailles vides en plus, et garantit
+au passage que tous les fichiers annuels partagent la même grille.
+
+Ensuite, et c'est une régression que l'ajout des coordonnées géographiques avait
+introduite le jour même, le pilote netCDF de GDAL traite toute variable nommée
+`lat` ou `lon` comme un tableau de géolocalisation et abandonne alors la
+géotransformation. Comme ces tableaux portent des NaN hors domaine,
+`gdalwarp -geoloc` échouait aussi : on perdait le calage sans rien gagner.
+Renommées `latitude` et `longitude`, elles restent lisibles et GDAL cale
+correctement. Les deux formes ont été essayées avant de conclure.
+
+    gdalinfo sur le fichier produit
+      Size is 143, 134
+      Origin = (56000, 2685000)
+      Pixel Size = (8000, -8000)
+
 **Les conventions CF ne sont pas déclarées.** Le fichier ne porte ni
 `Conventions`, ni `standard_name`, ni `title`, ni `history`, ni `references`.
 C'est le point d'interopérabilité le plus simple à corriger et le plus rentable :

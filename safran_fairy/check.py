@@ -25,7 +25,7 @@ from .tools import parse_filename
 
 # Measured on the sound files of the archive, not deduced from documentation.
 FIRST_DAY = pd.Timestamp("1958-08-01")
-GRID_SHAPE = (134, 142)  # (y, x)
+GRID_SHAPE = (134, 143)  # (y, x), grille complète : une colonne ne porte aucun point
 GRID_POINTS = 9892       # cells of the SAFRAN domain inside that rectangle
 SAMPLED_STEPS = 6        # time steps read in full to inspect the grid
 

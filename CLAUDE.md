@@ -183,8 +183,21 @@ documentation.
   le portent et qu'aucun `previous` ni `historical` ne le porte. Ne pas
   utiliser `-A` dans la chaîne de construction, et laisser `check.py` refuser
   les fichiers qui présentent un nom d'attribut inversé.
-- La grille de sortie est 134 x 142 pour 9 892 points réels. Les cases vides
+- La grille de sortie est **134 x 143** pour 9 892 points réels. Les cases vides
   ne sont pas une erreur de conversion, le domaine SAFRAN n'est pas rectangulaire.
+  Les axes sont construits depuis la grille de référence et **jamais depuis les
+  données** : une colonne du rectangle, à x = 68 000 m, ne porte aucun point, et
+  la déduire des données la ferait disparaître. L'axe x devenait alors
+  irrégulier, avec un pas de 16 km à cet endroit, et dans cet état **GDAL refuse
+  de caler le fichier** et le lit en coordonnées pixel. Cela garantit aussi que
+  tous les fichiers annuels partagent la même grille, ce dont ncrcat a besoin.
+- **Les coordonnées géographiques s'appellent `latitude` et `longitude`, jamais
+  `lat` et `lon`.** Le pilote netCDF de GDAL traite les noms courts comme des
+  tableaux de géolocalisation et abandonne alors la géotransformation, ce qui
+  rend le fichier inutilisable comme raster ; et comme ces tableaux contiennent
+  des NaN hors domaine, `gdalwarp -geoloc` échoue aussi. Avec les noms longs,
+  GDAL cale correctement et les variables restent lisibles. Vérifié sur les deux
+  formes.
 - **Le découpage interne des NetCDF publiés vaut `[1, 134, 142]`**, une carte
   complète par bloc. Extraire la chronique d'un point coûte donc la
   décompression du fichier entier : 8,81 s pour 99 Ko utiles, contre 0,02 s

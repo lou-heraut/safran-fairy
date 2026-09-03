@@ -50,13 +50,36 @@ def read_grid(METADATA_GRID_FILE):
     return grid.set_index(["y", "x"])[["lat", "lon"]]
 
 
+def regular_axes(METADATA_GRID_FILE):
+    """
+    Les axes x et y complets de la grille SAFRAN, au pas régulier de 8 km.
+
+    Les axes sont tirés de la grille de référence et non des données présentes :
+    une colonne du rectangle ne porte aucun point, et la reconstruire depuis les
+    données la ferait disparaître, rendant l'axe irrégulier. Mesuré : dans cet
+    état GDAL refuse de caler le fichier et le lit en coordonnées pixel. Cela
+    garantit aussi que tous les fichiers annuels partagent exactement la même
+    grille, ce dont ncrcat a besoin pour les concaténer.
+    """
+    grid = read_grid(METADATA_GRID_FILE).reset_index()
+    pas = 8000
+    x = np.arange(grid["x"].min(), grid["x"].max() + pas, pas)
+    y = np.arange(grid["y"].min(), grid["y"].max() + pas, pas)
+    return x, y
+
+
 def add_lat_lon(ds, METADATA_GRID_FILE):
     """
-    Ajoute latitude et longitude comme coordonnées auxiliaires bidimensionnelles.
+    Ajoute latitude et longitude comme variables auxiliaires bidimensionnelles.
 
     Le fichier reste en Lambert II étendu ; ces deux tableaux s'ajoutent sans
     rien remplacer, pour qu'un utilisateur puisse situer un point sans savoir
-    reprojeter. Coût mesuré : environ 300 Ko sur un fichier de 422 Mo.
+    reprojeter. Coût mesuré : environ 150 Ko sur un fichier de 422 Mo.
+
+    Elles s'appellent « latitude » et « longitude » et non « lat » et « lon » :
+    le pilote netCDF de GDAL traite les noms courts comme des tableaux de
+    géolocalisation et abandonne alors la géotransformation, ce qui rend le
+    fichier illisible comme raster. Vérifié sur les deux formes.
     """
     grid = read_grid(METADATA_GRID_FILE)
     forme = (ds.sizes["y"], ds.sizes["x"])
@@ -75,11 +98,13 @@ def add_lat_lon(ds, METADATA_GRID_FILE):
     if manquants:
         print(f"   ⚠️  {manquants} point(s) de la grille hors du domaine du fichier")
 
-    ds = ds.assign_coords(
-        lat=(("y", "x"), lat, {"standard_name": "latitude",
-                               "long_name": "latitude", "units": "degrees_north"}),
-        lon=(("y", "x"), lon, {"standard_name": "longitude",
-                               "long_name": "longitude", "units": "degrees_east"}))
+    ds = ds.assign(
+        latitude=(("y", "x"), lat, {"standard_name": "latitude",
+                                    "long_name": "latitude",
+                                    "units": "degrees_north"}),
+        longitude=(("y", "x"), lon, {"standard_name": "longitude",
+                                     "long_name": "longitude",
+                                     "units": "degrees_east"}))
     return ds
 
 
@@ -206,6 +231,12 @@ def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE,
         ds[var].attrs['grid_mapping'] = 'crs'
     
     if METADATA_GRID_FILE:
+        x, y = regular_axes(METADATA_GRID_FILE)
+        manquantes = len(x) - ds.sizes['x'], len(y) - ds.sizes['y']
+        if any(manquantes):
+            print(f"   → grille complétée : {manquantes[0]} colonne(s) et "
+                  f"{manquantes[1]} ligne(s) sans aucun point")
+        ds = ds.reindex(x=x, y=y)
         ds = add_lat_lon(ds, METADATA_GRID_FILE)
     if var in metadata_variables.index:
         bornes = metadata_variables.loc[var]['bornes_h']
@@ -220,8 +251,8 @@ def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE,
                              min(SPACE_CHUNK, ds.sizes['x']))},
         'time': {'units': 'days since 1970-01-01 00:00:00',
                  'calendar': 'standard', 'dtype': 'float64'},
-        'lat': {'zlib': True, 'complevel': 4, 'dtype': 'float32'},
-        'lon': {'zlib': True, 'complevel': 4, 'dtype': 'float32'},
+        'latitude': {'zlib': True, 'complevel': 4, 'dtype': 'float32'},
+        'longitude': {'zlib': True, 'complevel': 4, 'dtype': 'float32'},
     }
     if 'time_bnds' in ds:
         encoding['time_bnds'] = {'units': 'days since 1970-01-01 00:00:00',
