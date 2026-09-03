@@ -20,6 +20,7 @@ from .download import download, remove_orphans
 from .decompress import decompress
 from .split import split
 from .convert import convert
+from .process import process, already_converted
 from .build import build, inventory
 from .check import check, check_file
 from .clean import clean_local, clean_s3
@@ -31,7 +32,7 @@ from .catalog import generate_stac_catalog
 __all__ = [
     "Resource", "list_resources", "data_resources", "describe",
     "check_inventory", "is_data_filename",
-    "download", "remove_orphans", "decompress", "split", "convert", "build", "check",
+    "download", "remove_orphans", "decompress", "process", "already_converted", "split", "convert", "build", "check",
     "check_file", "inventory",
     "clean_local", "clean_s3",
     "parse_filename", "build_filename",
