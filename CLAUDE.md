@@ -160,11 +160,25 @@ Météo-France ; il a été établi sur les données. Voir le README, qui le pub
 
 ## Vérifications après modification
 
+**Avant tout commit**, dans cet ordre. Les deux premières lignes existent parce
+que deux imports manquants sont partis en production l'un après l'autre :
+`import main` n'exécute pas `main()`, qui n'est appelée que sous `__main__`, et
+lancer le script avec une seule option ne couvre que le chemin de cette option.
+
+```bash
+python -m pyflakes main.py safran_fairy/*.py verifier_reprise.py   # noms non définis
+python verifier_reprise.py                                          # reprise et chaîne entière
+```
+
+`pyflakes` signale `get_ipython`, qui est normal, il n'existe que sous IPython.
+
 ```bash
 python main.py --all --variables T          # la chaîne entière, sur une variable
 stac-valid batch $(find 05_catalog -name '*.json')   # zéro invalide attendu
 gdalinfo NETCDF:"04_data-output/T_*.nc":T   # Origin et Pixel Size renseignés
 ```
+
+Et pour le fond :
 
 `check.py` rend la liste des fichiers rejetés : **rien ne doit être publié si
 elle n'est pas vide.** Il doit refuser

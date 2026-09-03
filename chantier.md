@@ -121,6 +121,16 @@ chez les voisins, mais fait disparaître `safran_fairy` du code alors que
 
 ## Journal
 
+**2026-09-03, deux imports manquants en production.** Une modification par
+substitution de texte peut échouer sans rien dire quand son ancre a bougé :
+c'est arrivé deux fois de suite, sur `report` puis sur `process`, chacun
+découvert en production. La leçon tient en deux points, tous deux consignés dans
+CLAUDE.md. Une substitution doit vérifier qu'elle a bien eu lieu. Et la
+vérification doit être statique et couvrir tout le fichier, `pyflakes` voyant
+d'un coup ce qu'une exécution ne montre que sur le chemin qu'elle emprunte.
+`verifier_reprise.py` déroule désormais la chaîne entière par le point d'entrée.
+
+
 **2026-09-03, mise en production.** Premier essai sur la VM, sur `T` et
 `TINF_H`. `check.py` a rejeté les deux sorties : chronique commençant en 2000
 et deux trous. Ce n'était pas une régression mais le contrôle faisant son

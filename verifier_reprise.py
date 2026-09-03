@@ -147,14 +147,34 @@ def main() -> int:
 
     print("\nLE POINT D'ENTRÉE S'EXÉCUTE\n")
     # Importer main.py ne suffit pas : main() n'est appelée que sous __main__,
-    # donc un nom manquant dans son corps passe inaperçu. On l'exécute.
-    for options in (["--check"], ["--help"]):
+    # donc un nom manquant dans son corps reste invisible. Et l'exécuter avec
+    # une seule option ne couvre que le chemin de cette option : deux imports
+    # manquants sont passés ainsi, l'un après l'autre. On déroule donc la
+    # chaîne entière, sur le bac d'essai, sans rien publier.
+    config_essai = bac / "config.json"
+    reglages = dict(config)
+    reglages.update({"DOWNLOAD_DIR": str(bac / "dl"), "RAW_DIR": str(bac / "raw"),
+                     "SPLIT_DIR": str(bac / "split"), "CONVERT_DIR": str(bac / "conv"),
+                     "OUTPUT_DIR": str(bac / "out"), "CATALOG_DIR": str(bac / "cat"),
+                     "STATE_FILE": str(bac / "state.json")})
+    config_essai.write_text(json.dumps(reglages, indent=4))
+    (bac / "cat").mkdir(exist_ok=True)
+
+    passages = (["--help"],
+                ["--check"],
+                ["--decompress", "--split", "--convert", "--build", "--check",
+                 "--variables", VARIABLE])
+    for options in passages:
         rendu = subprocess.run([sys.executable, "main.py", *options],
-                               capture_output=True, text=True)
+                               capture_output=True, text=True,
+                               env={**os.environ, "CONFIG_FILE": str(config_essai)})
         casse = "Traceback" in rendu.stderr or "Traceback" in rendu.stdout
         echecs += casse
-        print(f"{'❌' if casse else '✅'} main.py {' '.join(options):10s} "
+        etiquette = " ".join(options)[:44]
+        print(f"{'❌' if casse else '✅'} main.py {etiquette:46s} "
               f"{'trace d exception' if casse else 'aucune exception'}")
+        if casse:
+            print("   " + (rendu.stderr or rendu.stdout).strip().splitlines()[-1])
 
     shutil.rmtree(bac, ignore_errors=True)
     print(f"\n{'✅ tout est conforme' if not echecs else f'❌ {echecs} écart(s)'}")

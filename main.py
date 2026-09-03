@@ -46,7 +46,7 @@ def load_config(config_file):
 
 def print_welcome(welcome_file):
     if Path(welcome_file).exists():
-        print(Path(welcome_file).read_text())
+        print(Path(welcome_file).read_text().rstrip())
 
 
 load_dotenv()
@@ -85,8 +85,8 @@ from safran_fairy import report
 from safran_fairy import (apply_s3_bucket_cors, apply_s3_bucket_policy, build,
                           check, clean_local, clean_s3, convert, decompress,
                           delete_s3_files, download, generate_stac_catalog,
-                          is_data_filename, list_s3_files, split, to_upload,
-                          upload_s3)
+                          is_data_filename, list_s3_files, process, split,
+                          to_upload, upload_s3)
 
 S3_CREDENTIALS = dict(S3_ACCESS_KEY=os.getenv("S3_ACCESS_KEY"),
                       S3_SECRET_KEY=os.getenv("S3_SECRET_KEY"),

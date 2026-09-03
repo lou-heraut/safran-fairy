@@ -137,8 +137,8 @@ def build_item(variable, fichier, meta, x, y, collection_id, urls) -> dict:
             "processing:datetime": fichier["created"],
             "processing:lineage": (
                 "Transposition sans altération des CSV quotidiens SIM2 publiés "
-                f"par Météo-France sur data.gouv.fr : un NetCDF par variable, "
-                f"grille Lambert II étendu inchangée."),
+                "par Météo-France sur data.gouv.fr : un NetCDF par variable, "
+                "grille Lambert II étendu inchangée."),
             "proj:code": f"EPSG:{EPSG}",
             "proj:shape": [len(y), len(x)],
             "proj:bbox": [float(x[0]) - STEP / 2, float(y[0]) - STEP / 2,
