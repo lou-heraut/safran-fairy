@@ -1,6 +1,7 @@
 {
     "WELCOME_FILE": "welcome.txt",
     "METADATA_VARIABLES_FILE": "safran-variables_2026-09-03.csv",
+    "METADATA_GRID_FILE": "safran-grille_2026-09-03.csv",
     "STATE_FILE": "download_state.json",
     "DOWNLOAD_DIR": "00_data-download",
     "RAW_DIR": "01_data-raw",
@@ -16,4 +17,4 @@
     "S3_BUCKET": "riverly-data-lake",
     "S3_DATA_PREFIX": "safran-fairy",
     "S3_REGION": "us-east-1"
-} 
+}

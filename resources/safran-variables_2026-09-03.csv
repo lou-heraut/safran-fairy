@@ -1,27 +1,27 @@
-variable,description,unite,unite_cf,standard_name,cell_methods,precision,periode_agregation
-PRENEI,Précipitations solides,mm,mm,lwe_thickness_of_snowfall_amount,time: sum,0.1,]06UTC-06UTC]
-PRELIQ,Précipitations liquides,mm,mm,thickness_of_rainfall_amount,time: sum,0.1,]06UTC-06UTC]
-T,Température,°C,degC,air_temperature,time: mean,0.1,]00UTC-00UTC]
-FF,Vent,m/s,m s-1,wind_speed,time: mean,0.1,]00UTC-00UTC]
-Q,Humidité spécifique,g/kg,g kg-1,specific_humidity,time: mean,,]00UTC-00UTC]
-DLI,Rayonnement atmosphérique,J/cm2,J cm-2,integral_wrt_time_of_surface_downwelling_longwave_flux_in_air,time: sum,,]00UTC-00UTC]
-SSI,Rayonnement visible,J/cm2,J cm-2,integral_wrt_time_of_surface_downwelling_shortwave_flux_in_air,time: sum,,]00UTC-00UTC]
-HU,Humidité relative,%,%,relative_humidity,time: mean,,]00UTC-00UTC]
-EVAP,Evapotranspiration totale,mm,mm,,time: sum,0.1,]06UTC-06UTC]
-ETP,Evapotranspiration potentielle (Penman-Monteith FAO-56),mm,mm,,time: sum,0.1,]06UTC-06UTC]
-PE,Pluies efficaces,mm,mm,,time: sum,0.1,]06UTC-06UTC]
-SWI,Indice d'humidité des sols,%,%,,time: mean,,]06UTC-06UTC]
-SSWI_10J,Indice sécheresse de l'humidité des sols sur 10 jours,sans unité,1,,,,
-DRAINC,Drainage,mm,mm,,time: sum,0.1,]06UTC-06UTC]
-RUNC,Ruissellement,mm,mm,,time: sum,0.1,]06UTC-06UTC]
-RESR_NEIGE,Equivalent en eau du manteau neigeux,mm,mm,lwe_thickness_of_surface_snow_amount,time: mean,0.1,]06UTC-06UTC]
-RESR_NEIGE6,Equivalent en eau du manteau neigeux à 06 UTC,mm,mm,lwe_thickness_of_surface_snow_amount,time: point,0.1,06UTC
-HTEURNEIGE,Epaisseur du manteau neigeux,m,m,surface_snow_thickness,time: mean,,]06UTC-06UTC]
-HTEURNEIGE6,Epaisseur du manteau neigeux à 06 UTC,m,m,surface_snow_thickness,time: point,,06UTC
-HTEURNEIGEX,Epaisseur du manteau neigeux horaire maximum,m,m,surface_snow_thickness,time: maximum,,
-SNOW_FRAC,Fraction de maille recouverte par la neige,%,%,surface_snow_area_fraction,time: mean,,]06UTC-06UTC]
-ECOULEMENT,Ecoulement à la base du manteau neigeux,mm,mm,,time: sum,0.1,]06UTC-06UTC]
-WG_RACINE,Contenu en eau liquide dans la couche racinaire à 06 UTC,m3/m3,m3 m-3,volume_fraction_of_condensed_water_in_soil,time: point,,06UTC
-WGI_RACINE,Contenu en eau gelée dans la couche racinaire à 06 UTC,m3/m3,m3 m-3,volume_fraction_of_frozen_water_in_soil,time: point,,06UTC
-TINF_H,Température minimale des 24 températures horaires,°C,degC,air_temperature,time: minimum,0.1,]18UTC-18UTC]
-TSUP_H,Température maximale des 24 températures horaires,°C,degC,air_temperature,time: maximum,0.1,]06UTC-06UTC]
+variable,description,unite,unite_cf,standard_name,cell_methods,precision,periode_agregation,bornes_h
+PRENEI,Précipitations solides,mm,mm,lwe_thickness_of_snowfall_amount,time: sum,0.1,]06UTC-06UTC],6:30
+PRELIQ,Précipitations liquides,mm,mm,thickness_of_rainfall_amount,time: sum,0.1,]06UTC-06UTC],6:30
+T,Température,°C,degC,air_temperature,time: mean,0.1,]00UTC-00UTC],0:24
+FF,Vent,m/s,m s-1,wind_speed,time: mean,0.1,]00UTC-00UTC],0:24
+Q,Humidité spécifique,g/kg,g kg-1,specific_humidity,time: mean,,]00UTC-00UTC],0:24
+DLI,Rayonnement atmosphérique,J/cm2,J cm-2,integral_wrt_time_of_surface_downwelling_longwave_flux_in_air,time: sum,,]00UTC-00UTC],0:24
+SSI,Rayonnement visible,J/cm2,J cm-2,integral_wrt_time_of_surface_downwelling_shortwave_flux_in_air,time: sum,,]00UTC-00UTC],0:24
+HU,Humidité relative,%,%,relative_humidity,time: mean,,]00UTC-00UTC],0:24
+EVAP,Evapotranspiration totale,mm,mm,,time: sum,0.1,]06UTC-06UTC],6:30
+ETP,Evapotranspiration potentielle (Penman-Monteith FAO-56),mm,mm,,time: sum,0.1,]06UTC-06UTC],6:30
+PE,Pluies efficaces,mm,mm,,time: sum,0.1,]06UTC-06UTC],6:30
+SWI,Indice d'humidité des sols,%,%,,time: mean,,]06UTC-06UTC],6:30
+SSWI_10J,Indice sécheresse de l'humidité des sols sur 10 jours,sans unité,1,,,,,
+DRAINC,Drainage,mm,mm,,time: sum,0.1,]06UTC-06UTC],6:30
+RUNC,Ruissellement,mm,mm,,time: sum,0.1,]06UTC-06UTC],6:30
+RESR_NEIGE,Equivalent en eau du manteau neigeux,mm,mm,lwe_thickness_of_surface_snow_amount,time: mean,0.1,]06UTC-06UTC],6:30
+RESR_NEIGE6,Equivalent en eau du manteau neigeux à 06 UTC,mm,mm,lwe_thickness_of_surface_snow_amount,time: point,0.1,06UTC,
+HTEURNEIGE,Epaisseur du manteau neigeux,m,m,surface_snow_thickness,time: mean,,]06UTC-06UTC],6:30
+HTEURNEIGE6,Epaisseur du manteau neigeux à 06 UTC,m,m,surface_snow_thickness,time: point,,06UTC,
+HTEURNEIGEX,Epaisseur du manteau neigeux horaire maximum,m,m,surface_snow_thickness,time: maximum,,,
+SNOW_FRAC,Fraction de maille recouverte par la neige,%,%,surface_snow_area_fraction,time: mean,,]06UTC-06UTC],6:30
+ECOULEMENT,Ecoulement à la base du manteau neigeux,mm,mm,,time: sum,0.1,]06UTC-06UTC],6:30
+WG_RACINE,Contenu en eau liquide dans la couche racinaire à 06 UTC,m3/m3,m3 m-3,volume_fraction_of_condensed_water_in_soil,time: point,,06UTC,
+WGI_RACINE,Contenu en eau gelée dans la couche racinaire à 06 UTC,m3/m3,m3 m-3,volume_fraction_of_frozen_water_in_soil,time: point,,06UTC,
+TINF_H,Température minimale des 24 températures horaires,°C,degC,air_temperature,time: minimum,0.1,]18UTC-18UTC],-6:18
+TSUP_H,Température maximale des 24 températures horaires,°C,degC,air_temperature,time: maximum,0.1,]06UTC-06UTC],6:30

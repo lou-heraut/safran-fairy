@@ -7,9 +7,10 @@ ncrcat takes the chunking of its first input.
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 from art import tprint
@@ -29,6 +30,83 @@ REFERENCES = ("https://www.data.gouv.fr/datasets/6569b27598256cc583c917a7 ; "
               "https://doi.org/10.57745/BAZ12C")
 
 
+def read_grid(METADATA_GRID_FILE):
+    """
+    Lit la grille de référence fournie par Météo-France.
+
+    Returns:
+        pandas.DataFrame: indexé par (y, x) en mètres, colonnes « lat » et « lon ».
+
+    Notes:
+        - Le fichier est en point-virgule et en virgule décimale.
+        - Les coordonnées sont recopiées telles quelles, jamais reprojetées :
+          c'est le producteur qui les donne.
+    """
+    grid = pd.read_csv(METADATA_GRID_FILE, sep=";", decimal=",")
+    grid = grid.rename(columns={"LAMBX (hm)": "x", "LAMBY (hm)": "y",
+                                "LAT_DG": "lat", "LON_DG": "lon"})
+    grid["x"] *= 100
+    grid["y"] *= 100
+    return grid.set_index(["y", "x"])[["lat", "lon"]]
+
+
+def add_lat_lon(ds, METADATA_GRID_FILE):
+    """
+    Ajoute latitude et longitude comme coordonnées auxiliaires bidimensionnelles.
+
+    Le fichier reste en Lambert II étendu ; ces deux tableaux s'ajoutent sans
+    rien remplacer, pour qu'un utilisateur puisse situer un point sans savoir
+    reprojeter. Coût mesuré : environ 300 Ko sur un fichier de 422 Mo.
+    """
+    grid = read_grid(METADATA_GRID_FILE)
+    forme = (ds.sizes["y"], ds.sizes["x"])
+    lat = np.full(forme, np.nan)
+    lon = np.full(forme, np.nan)
+    index_y = {v: i for i, v in enumerate(ds.y.values)}
+    index_x = {v: i for i, v in enumerate(ds.x.values)}
+
+    manquants = 0
+    for (y, x), ligne in grid.iterrows():
+        i, j = index_y.get(y), index_x.get(x)
+        if i is None or j is None:
+            manquants += 1
+            continue
+        lat[i, j], lon[i, j] = ligne["lat"], ligne["lon"]
+    if manquants:
+        print(f"   ⚠️  {manquants} point(s) de la grille hors du domaine du fichier")
+
+    ds = ds.assign_coords(
+        lat=(("y", "x"), lat, {"standard_name": "latitude",
+                               "long_name": "latitude", "units": "degrees_north"}),
+        lon=(("y", "x"), lon, {"standard_name": "longitude",
+                               "long_name": "longitude", "units": "degrees_east"}))
+    return ds
+
+
+def add_time_bounds(ds, bornes):
+    """
+    Ajoute les bornes de la fenêtre d'agrégation quotidienne.
+
+    Args:
+        bornes (str): décalages en heures depuis minuit UTC du jour porté par la
+                      date, sous la forme « début:fin ». Ex: « 6:30 » pour
+                      ]06UTC-06UTC], « -6:18 » pour ]18UTC-18UTC].
+
+    Notes:
+        - Le sens de ]06UTC-06UTC] est établi sur les données, sur 53 241 jours
+          de fonte nivale ; celui de ]18UTC-18UTC] par corrélation. Voir
+          chantier.md.
+        - Rien n'est ajouté pour une valeur instantanée ou une fenêtre inconnue.
+    """
+    debut_h, fin_h = (int(v) for v in bornes.split(":"))
+    jours = pd.DatetimeIndex(ds.time.values)
+    bnds = np.stack([jours + timedelta(hours=debut_h),
+                     jours + timedelta(hours=fin_h)], axis=1)
+    ds = ds.assign(time_bnds=(("time", "nv"), bnds))
+    ds.time.attrs["bounds"] = "time_bnds"
+    return ds
+
+
 def var_title(var, metadata_variables):
     """Human readable name of a variable, falling back on its code."""
     if var in metadata_variables.index:
@@ -36,7 +114,8 @@ def var_title(var, metadata_variables):
     return var
 
 
-def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE):
+def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE,
+                  METADATA_GRID_FILE=None):
     metadata_variables = pd.read_csv(METADATA_VARIABLES_FILE,
                                      index_col='variable')
     
@@ -126,6 +205,13 @@ def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE):
             ds[var].attrs['aggregation_period'] = var_meta['periode_agregation']
         ds[var].attrs['grid_mapping'] = 'crs'
     
+    if METADATA_GRID_FILE:
+        ds = add_lat_lon(ds, METADATA_GRID_FILE)
+    if var in metadata_variables.index:
+        bornes = metadata_variables.loc[var]['bornes_h']
+        if pd.notna(bornes) and str(bornes).strip():
+            ds = add_time_bounds(ds, str(bornes).strip())
+
     output_file = CONVERT_DIR / file.with_suffix('.nc').name
     encoding = {
         var: {'zlib': True, 'complevel': 4, 'dtype': 'float32',
@@ -133,8 +219,14 @@ def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE):
                              min(SPACE_CHUNK, ds.sizes['y']),
                              min(SPACE_CHUNK, ds.sizes['x']))},
         'time': {'units': 'days since 1970-01-01 00:00:00',
-                 'calendar': 'standard', 'dtype': 'float64'}
+                 'calendar': 'standard', 'dtype': 'float64'},
+        'lat': {'zlib': True, 'complevel': 4, 'dtype': 'float32'},
+        'lon': {'zlib': True, 'complevel': 4, 'dtype': 'float32'},
     }
+    if 'time_bnds' in ds:
+        encoding['time_bnds'] = {'units': 'days since 1970-01-01 00:00:00',
+                                 'calendar': 'standard', 'dtype': 'float64'}
+    encoding = {k: v for k, v in encoding.items() if k in ds.variables}
     
     ds.to_netcdf(output_file, encoding=encoding, unlimited_dims=['time'])
     print(f"   💾 {output_file.name}")
@@ -143,7 +235,7 @@ def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE):
 
 
 def convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE,
-            splited_files=None):
+            splited_files=None, METADATA_GRID_FILE=None):
     """
     Convertit les fichiers Parquet en fichiers NetCDF géoréférencés.
 
@@ -177,7 +269,8 @@ def convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE,
     for i, file in enumerate(splited_files, start=1):
         print(f"\n[{i}/{len(splited_files)}]")
         output_file = create_netcdf(file, CONVERT_DIR,
-                                    METADATA_VARIABLES_FILE)       
+                                    METADATA_VARIABLES_FILE,
+                                    METADATA_GRID_FILE)
         converted_files.append(output_file)
         
     print("\nRÉSUMÉ")

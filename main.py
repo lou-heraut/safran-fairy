@@ -41,6 +41,7 @@ config = load_config(CONFIG_FILE)
 RESOURCES_DIR = Path("resources")
 WELCOME_FILE = RESOURCES_DIR / config["WELCOME_FILE"]
 METADATA_VARIABLES_FILE = RESOURCES_DIR / config["METADATA_VARIABLES_FILE"]
+METADATA_GRID_FILE = RESOURCES_DIR / config["METADATA_GRID_FILE"]
 STATE_FILE = config["STATE_FILE"]
 DOWNLOAD_DIR = config["DOWNLOAD_DIR"]
 RAW_DIR = config["RAW_DIR"]
@@ -140,7 +141,8 @@ def main() -> None:
         parquet_files = split(RAW_DIR, SPLIT_DIR, csv_files, variables=variables)
 
     if args.convert:
-        convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE, parquet_files)
+        convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE, parquet_files,
+                METADATA_GRID_FILE=METADATA_GRID_FILE)
 
     if args.build:
         outputs = build(CONVERT_DIR, OUTPUT_DIR, variables=variables)
