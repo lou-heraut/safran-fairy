@@ -313,14 +313,43 @@ sait que `T` est une température de l'air.
 - [x] provenance rétablie sur le fichier assemblé : `ncrcat` héritant des
       attributs de sa première entrée, le fichier publié annonçait venir du
       seul Parquet de 1958. `build.py` réécrit `history` et `source_files`.
-- [ ] les 8 variables sans `standard_name` sont celles dont l'unité en
-      millimètres n'est pas convertible vers l'unité canonique CF, en
-      kilogrammes par mètre carré : ETP, EVAP, PE, DRAINC, RUNC, ECOULEMENT,
-      plus SWI et SSWI_10J qui n'ont pas d'équivalent. Les nommer imposerait
-      d'écrire `units = "kg m-2"` là où l'utilisateur attend des millimètres,
-      ce qui est exact physiquement, 1 mm d'eau valant 1 kg m-2, mais visible.
-      **À trancher.**
 - [ ] contrôler le résultat avec `cfchecker` et ajouter ce contrôle à `check.py`
+
+#### Questions laissées ouvertes sur les métadonnées
+
+La ligne suivie est de prendre la standardisation qui ne coûte rien et de
+s'arrêter là où elle toucherait au contenu. Ces trois points la franchissent
+ou s'en approchent, ils attendent donc une décision.
+
+**Les 8 variables sans `standard_name`.** ETP, EVAP, PE, DRAINC, RUNC et
+ECOULEMENT sont en millimètres ; l'unité canonique CF des grandeurs
+correspondantes est le kilogramme par mètre carré. Physiquement c'est la même
+chose pour de l'eau, 1 mm de lame valant 1 kg m-2, mais pour un vérificateur
+`mm` est une longueur et `kg m-2` une masse par surface : il refuse
+l'association. Leur donner un nom CF imposerait donc d'écrire
+`units = "kg m-2"` là où l'utilisateur attend des millimètres. Aucune valeur ne
+changerait, seulement l'étiquette. **Décision du 3 septembre 2026 : on garde
+les millimètres**, la réserve de Louis étant qu'on redistribue la donnée de
+Météo-France sans en retoucher la présentation. SWI et SSWI_10J n'ont de toute
+façon aucun équivalent dans le vocabulaire. À rouvrir seulement si un
+utilisateur en exprime le besoin.
+
+**Les coordonnées géographiques.** Le fichier est en Lambert II étendu, donc
+situer un point demande de savoir reprojeter. CF prévoit d'ajouter deux
+tableaux auxiliaires de latitude et de longitude, en plus et sans rien enlever,
+déclarés par un attribut `coordinates`. Météo-France les fournit déjà dans
+`coordonnees_grille_safran_lambert-2-etendu.csv`, il n'y a donc aucun calcul à
+faire ni aucune approximation à introduire. Coût : environ 300 Ko sur un
+fichier de 422 Mo. Bénéfice : extraire un point depuis des coordonnées GPS
+devient direct. **Proposé, non fait.**
+
+**Les bornes de temps.** Une valeur quotidienne SAFRAN couvre une fenêtre
+précise, `]06UTC-06UTC]` ou `]18UTC-18UTC]` selon la variable. Cette
+information vit aujourd'hui dans un attribut en texte libre,
+`aggregation_period`, que seul un humain lit. CF a `time_bnds` pour ça, qui
+donne le début et la fin de chaque intervalle et rend la fenêtre exploitable
+par une machine. L'information vient de la documentation Météo-France, elle
+n'est pas inventée. **Proposé, non fait.**
 
 ### Phase 5, le catalogue STAC
 

@@ -221,6 +221,28 @@ Fichier de référence conservé hors git : `04_data-output-prod/`, le dernier
 produit par la production. Il est **corrompu** (voir chantier.md) : il sert à
 comparer les valeurs sur la période commune, pas à valider une structure.
 
+## Métadonnées : la ligne suivie
+
+Prendre la standardisation qui ne coûte rien, s'arrêter là où elle toucherait
+au contenu. Le projet redistribue la donnée de Météo-France dans un autre
+format, il ne la retouche pas, et cela vaut aussi pour la présentation.
+
+Les fichiers déclarent `Conventions = "CF-1.10"`, portent `title`, `history` et
+`references` en attributs globaux, et `standard_name` plus `cell_methods` par
+variable. Les noms sont vérifiés contre la table CF officielle, jamais écrits
+de mémoire : la télécharger et l'interroger prend une minute.
+
+`units` porte la forme udunits, que CF exige et que les outils savent analyser :
+`degC` et non `°C`, `m s-1` et non `m/s`. Ce n'est pas un changement d'unité,
+seulement d'écriture ; le libellé français reste dans `long_name` et la forme
+d'origine dans la colonne `unite` du fichier de variables.
+
+**Huit variables n'ont volontairement pas de `standard_name`** : ETP, EVAP, PE,
+DRAINC, RUNC et ECOULEMENT sont en millimètres quand l'unité canonique CF est
+le kilogramme par mètre carré, et leur en donner un imposerait de changer
+l'étiquette d'unité ; SWI et SSWI_10J n'ont pas d'équivalent dans le
+vocabulaire. C'est un choix, pas un oubli, voir chantier.md.
+
 ## Licence
 
 Le code est en GPL-3.0-or-later ; **les données SIM2 ne le sont pas** (Licence
