@@ -1,0 +1,50 @@
+cff-version: 1.2.0
+title: safran-fairy
+message: >-
+  Si vous utilisez ce logiciel, merci de le citer comme indiqué ci-dessous.
+  Pensez également à citer les données SIM2 elles-mêmes, référencées plus bas.
+type: software
+abstract: >-
+  Pipeline de mise en forme des données SIM2 (SAFRAN-ISBA-MODCOU) de
+  Météo-France : à partir des CSV quotidiens publiés sur data.gouv.fr, il
+  produit un fichier NetCDF par variable climatique couvrant toute la chronique
+  depuis 1958, conforme aux conventions CF, et le publie sur un stockage objet
+  ouvert accompagné d'un catalogue STAC. Les valeurs ne sont ni corrigées ni
+  recalculées, seulement transposées.
+authors:
+  - family-names: Héraut
+    given-names: Louis
+    email: louis.heraut@inrae.fr
+    orcid: 'https://orcid.org/0009-0006-4372-0923'
+    affiliation: 'INRAE, UR RiverLy, Villeurbanne, France'
+license: GPL-3.0-or-later
+repository-code: 'https://github.com/lou-heraut/safran-fairy'
+keywords:
+  - SAFRAN
+  - SIM2
+  - ISBA
+  - MODCOU
+  - réanalyse
+  - hydrométéorologie
+  - NetCDF
+  - STAC
+  - France
+  - FAIR
+references:
+  - type: database
+    title: >-
+      Données changement climatique SIM quotidienne (SAFRAN-ISBA-MODCOU)
+    abstract: >-
+      Réanalyse hydrométéorologique quotidienne sur la France métropolitaine,
+      sur une grille de 8 km, depuis le 1er août 1958 : paramètres
+      atmosphériques de surface et bilan hydrique des sols.
+    authors:
+      - name: Météo-France
+        website: 'https://www.meteofrance.fr'
+    doi: 10.57745/BAZ12C
+    url: 'https://www.data.gouv.fr/datasets/6569b27598256cc583c917a7'
+    license-url: >-
+      https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf
+    notes: >-
+      Données sous Licence Ouverte / Open Licence 2.0 (Etalab). Cette licence
+      est distincte de celle du présent logiciel.

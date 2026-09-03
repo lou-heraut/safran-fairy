@@ -1,202 +1,168 @@
-```markdown
-# Installation
+# Installation et exploitation
 
+Ce fichier s'adresse à qui fait tourner le service. Pour se servir des données
+publiées, voir le [README](README.md).
 
-## Installation sur serveur Linux
-### 1. Prérequis système
+## Prérequis
+
 ```bash
-# Mise à jour
-sudo apt update && sudo apt upgrade -y
-# Dépendances système
-sudo apt install -y \
-    python3.10 \
-    python3-pip \
-    python3-venv \
-    nco \
-    git
+sudo apt install python3 python3-venv nco git
 ```
 
-### 2. Installation du projet
+**NCO n'est pas optionnel.** Le pipeline appelle `ncrcat` pour assembler les
+chroniques ; ni xarray ni netCDF4 ne le remplacent à ce volume. Sans lui, tout
+fonctionne jusqu'à l'assemblage, qui échoue.
+
+## Ce que ça consomme
+
+Sur le disque, une fois le régime établi :
+
+```
+00_data-download    9,4 Go    les CSV sources, pour rejouer sans réseau
+03_data-convert      12 Go    un NetCDF par variable et par année
+04_data-output        9 Go    les 26 fichiers publiés
+                    ------
+                     31 Go    plus moins de 1 Go de transitoire
+```
+
+Prévoir 50 Go pour être tranquille. Les dossiers `01_data-raw` et
+`02_data-split` restent vides entre deux fichiers : la chaîne décompresse,
+découpe, convertit, puis efface, ce qui évite de faire cohabiter 44 Go
+d'intermédiaires morts.
+
+Le réseau : 9,4 Go au premier run, puis une vingtaine de mégaoctets par jour, et
+137 Mo par année révisée deux fois par mois.
+
+## Installation
+
 ```bash
-# Cloner le projet
 sudo git clone https://github.com/lou-heraut/safran-fairy.git /opt/safran-fairy
 cd /opt/safran-fairy
-# Installer le virtualenv et les dépendances Python
 sudo make install
 ```
 
-### 3. Configuration
-#### 3.1. env
+### Configuration
+
+Deux fichiers, l'un pour les secrets, l'autre pour le reste.
+
 ```bash
-# Copier et éditer le fichier d'environnement
-sudo cp env.dist .env
-sudo nano .env
+sudo cp env.dist .env          # MODE, CONFIG_FILE, clés S3
+sudo cp config.json.dist config-prod.json
 ```
-Remplir avec vos paramètres pour la prod :
+
+`.env` désigne le fichier de configuration à utiliser, ce qui permet de garder
+des chemins de développement et des chemins de production côte à côte :
+
 ```bash
 MODE=prod
 CONFIG_FILE=config-prod.json
-RDG_API_TOKEN=token_dataverse
-S3_ACCESS_KEY=clé_accès_S3
-S3_SECRET_KEY=clé_secrète_S3
+S3_ACCESS_KEY=...
+S3_SECRET_KEY=...
 ```
 
-#### 3.2. config.json
-```bash
-# Copier et éditer le fichier de configuration
-sudo cp config.json.dist config-prod.json
-sudo nano config-prod.json
-```
-Remplir avec vos paramètres pour la prod, en particulier :
+Dans `config-prod.json`, faire pointer les dossiers vers `/var/lib` :
+
 ```json
-"STATE_FILE": "/var/lib/safran-fairy/download_state.json",
+"STATE_FILE":   "/var/lib/safran-fairy/download_state.json",
 "DOWNLOAD_DIR": "/var/lib/safran-fairy/00_data-download",
-"RAW_DIR": "/var/lib/safran-fairy/01_data-raw",
-"SPLIT_DIR": "/var/lib/safran-fairy/02_data-split",
-"CONVERT_DIR": "/var/lib/safran-fairy/03_data-convert",
-"OUTPUT_DIR": "/var/lib/safran-fairy/04_data-output",
-"CATALOG_DIR": "/var/lib/safran-fairy/05_catalog"
+"RAW_DIR":      "/var/lib/safran-fairy/01_data-raw",
+"SPLIT_DIR":    "/var/lib/safran-fairy/02_data-split",
+"CONVERT_DIR":  "/var/lib/safran-fairy/03_data-convert",
+"OUTPUT_DIR":   "/var/lib/safran-fairy/04_data-output",
+"CATALOG_DIR":  "/var/lib/safran-fairy/05_catalog"
 ```
 
-### 4. Installation prod et service systemd
+### Bucket et service
+
 ```bash
-# Crée l'user système, les dossiers /var/lib avec les bons droits,
-# installe et démarre le timer — tout en une commande
+make run-setup          # policy de lecture publique et CORS, une seule fois
 sudo make install-service
 ```
 
-### 5. Test manuel
+`install-service` crée l'utilisateur système, les dossiers avec les bons droits,
+installe le timer et le démarre. L'exécution est quotidienne à 02:00 UTC.
+
+## Lancer
+
 ```bash
-# Tester le pipeline comme le ferait le service
-make run-as-service
-
-# Vérifier les données générées
-ls -lh /var/lib/safran-fairy/04_data-output/
+make run-all            # la chaîne complète
+make run-as-service     # la même, comme le ferait systemd
 ```
 
-### 6. Vérification
+Chaque étape s'exécute aussi seule, ce qui sert à reprendre ou à déboguer :
+
 ```bash
-# Voir les prochaines exécutions planifiées
-make service-status
-
-# Tester une exécution manuelle via systemd
-sudo systemctl start safran-sync.service
-
-# Suivre les logs en temps réel
-make service-logs
+make run-download run-decompress run-split run-convert run-build
+make run-check          # contrôle sans rien publier
+make run-upload run-ui
+make run-clean          # purge les versions périmées, local et S3
 ```
 
+Pour un essai rapide, `--variables` restreint le traitement et divise le coût
+par 26 :
 
-## Configuration avancée
-### Changer l'heure d'exécution
-Éditer le timer :
 ```bash
-sudo systemctl edit safran-sync.timer
+.python_env/bin/python main.py --all --variables T
 ```
-Ajouter :
-```ini
-[Timer]
-OnCalendar=
-OnCalendar=*-*-* 03:00:00
-```
-Recharger :
+
+## Reprendre un run interrompu
+
+Relancer la même commande suffit. La chaîne saute ce qui est déjà fait :
+
+- un fichier source déjà téléchargé et inchangé n'est pas retéléchargé ;
+- une année déjà convertie, et plus récente que son CSV, n'est pas reconvertie ;
+- une sortie déjà assemblée, et plus récente que toutes ses entrées, n'est pas
+  réassemblée ;
+- un fichier déjà en ligne à l'identique n'est pas renvoyé.
+
+Si une conversion a échoué, le CSV et les Parquet du fichier fautif sont laissés
+en place dans `01_data-raw` et `02_data-split`, exprès, pour qu'on puisse
+regarder ce qui s'est passé.
+
+## Surveiller
+
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl restart safran-sync.timer
+make service-status             # statut du timer et prochaines exécutions
+make service-logs               # journal en temps réel
+make service-logs-last-run      # dernière exécution
+make data-stats                 # volumes et date de la dernière sortie
 ```
 
-### Notifications par email
-Installer postfix :
+Le service écrit dans le journal systemd, pas dans un fichier : `journalctl -u
+safran-sync.service` est le point d'entrée, et il n'y a pas de logrotate à
+configurer.
+
+Un run qui se termine bien affiche le nombre de fichiers assemblés, contrôlés et
+envoyés. **Rien n'est publié si le contrôle rejette un fichier** : le processus
+s'arrête avec un code non nul, ce que systemd remonte.
+
+## Dépannage
+
+**L'assemblage échoue avec « échec de ncrcat ».** NCO n'est pas installé, ou les
+fichiers annuels n'ont pas tous la même grille. Le second cas ne devrait plus se
+produire, la grille venant de la référence et non des données.
+
+**Le téléchargement s'arrête sur « l'inventaire amont ne correspond plus au
+format attendu ».** Météo-France a changé la forme de son dépôt. C'est
+volontairement bloquant : produire une chronique tronquée en silence serait pire.
+Tout ce qui décrit le dépôt amont est dans `safran_fairy/sources.py`.
+
+**Le contrôle rejette un fichier.** Le message dit quoi : doublons dans l'axe
+temporel, trou dans la chronique, grille inattendue, métadonnée manquante. Le
+fichier reste sur le disque, rien n'est publié.
+
+**Reconstruire entièrement.** Supprimer `03_data-convert` force la reconversion
+depuis les CSV déjà téléchargés, sans repasser par le réseau. Supprimer aussi
+`00_data-download` repart de zéro, 9,4 Go de téléchargement.
+
+## Mettre à jour
+
 ```bash
-sudo apt install postfix mailutils
-```
-Modifier le service pour envoyer un email en cas d'erreur :
-```bash
-sudo systemctl edit safran-sync.service
-```
-Ajouter :
-```ini
-[Service]
-OnFailure=status-email@%n.service
-```
-
-### Rotation des logs
-Créer `/etc/logrotate.d/safran-fairy` :
-```
-/var/log/safran-fairy/*.log {
-    daily
-    rotate 30
-    compress
-    delaycompress
-    notifempty
-    create 0644 safran-fairy safran-fairy
-    sharedscripts
-}
-```
-
-
-## Monitoring
-### Vérifier la santé du service
-```bash
-# Statut général
-make service-status
-
-# Logs de la dernière exécution
-make service-logs-last-run
-
-# Logs des 24 dernières heures
-sudo journalctl -u safran-sync.service --since "24 hours ago"
-
-# Erreurs uniquement
-sudo journalctl -u safran-sync.service -p err
-```
-
-### Métriques utiles
-```bash
-# Taille des données
-make data-stats
-
-# Taille brute des dossiers
-du -sh /var/lib/safran-fairy/*/
-
-# Nombre de fichiers traités
-ls /var/lib/safran-fairy/04_data-output/*.nc | wc -l
-
-# Dernière mise à jour
-stat -c '%y' /var/lib/safran-fairy/04_data-output/*.nc | sort | tail -1
-```
-
-
-## Mise à jour
-```bash
-# Mettre à jour le code depuis git
 cd /opt/safran-fairy
-make update
-
-# Le service utilisera automatiquement le nouveau code
-# à sa prochaine exécution planifiée
-# OU tester immédiatement :
-sudo systemctl start safran-sync.service
-make service-logs
+sudo git pull
+sudo .python_env/bin/pip install --upgrade -r requirements.txt
 ```
 
-**Note :** La mise à jour ne modifie pas vos fichiers de configuration (`.env`, `config.json`) ni vos données.
-
-
-## Désinstallation
-```bash
-# Arrêter et désactiver le service
-make uninstall-service
-# Supprimer le projet (attention : supprime toutes les données !)
-sudo rm -rf /opt/safran-fairy
-```
-
-
-## Migration vers un nouveau serveur
-```bash
-# Sur l'ancien serveur : sauvegarder la config et l'état
-tar czf safran-backup.tar.gz .env resources/download_state.json
-# Sur le nouveau serveur : suivre l'installation normale puis restaurer
-tar xzf safran-backup.tar.gz
-```
-```
+Une modification qui change le contenu des fichiers produits, comme le découpage
+interne ou les métadonnées, demande de reconstruire : supprimer
+`03_data-convert` puis relancer.
