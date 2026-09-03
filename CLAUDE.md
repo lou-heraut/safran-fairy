@@ -234,6 +234,22 @@ Fichier de référence conservé hors git : `04_data-output-prod/`, le dernier
 produit par la production. Il est **corrompu** (voir chantier.md) : il sert à
 comparer les valeurs sur la période commune, pas à valider une structure.
 
+## Le catalogue STAC
+
+Une collection, un item par fichier publié, en STAC 1.1.0, avec les extensions
+`datacube`, `projection`, `file`, `scientific` et `processing`. Il est généré
+depuis le bucket et non depuis le dossier de sortie : **il décrit ce qui est
+réellement en ligne**.
+
+Le catalogue racine `stac-data/catalog.json` n'est pas regénéré. Il est partagé
+avec les autres jeux du data lake, et l'écrire depuis ce dépôt effacerait leurs
+liens. Le code vérifie qu'il référence la collection et prévient sinon.
+
+Toute modification se valide avec `stac-valid batch 05_catalog/items/*.json
+05_catalog/collection.json`, qui doit annoncer zéro invalide. Les items publiés
+avant la refonte étaient tous invalides sans que personne ne le voie, STAC
+Browser étant tolérant : ne pas se fier à son affichage.
+
 ## Métadonnées : la ligne suivie
 
 Prendre la standardisation qui ne coûte rien, s'arrêter là où elle toucherait

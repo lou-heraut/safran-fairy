@@ -66,8 +66,9 @@ if MODE == "dev":
 
 from safran_fairy import (apply_s3_bucket_cors, apply_s3_bucket_policy, build,
                           check, clean_local, clean_s3, convert, decompress,
-                          download, generate_stac_catalog, is_data_filename,
-                          split, to_upload, upload_s3)
+                          delete_s3_files, download, generate_stac_catalog,
+                          is_data_filename, list_s3_files, split, to_upload,
+                          upload_s3)
 
 S3_CREDENTIALS = dict(S3_ACCESS_KEY=os.getenv("S3_ACCESS_KEY"),
                       S3_SECRET_KEY=os.getenv("S3_SECRET_KEY"),
@@ -242,12 +243,24 @@ def main() -> None:
             S3_BUCKET=S3_BUCKET,
             S3_PREFIX="data/" + S3_DATA_PREFIX,
             METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
+            METADATA_GRID_FILE=METADATA_GRID_FILE,
+            OUTPUT_DIR=OUTPUT_DIR,
             **S3_CREDENTIALS)
-        upload_s3(local_paths=stac_files,
-                  S3_BUCKET=S3_BUCKET,
-                  s3_paths=[Path(p).relative_to(CATALOG_DIR) for p in stac_files],
-                  S3_PREFIX="stac-data/" + S3_DATA_PREFIX,
-                  **S3_CREDENTIALS)
+        prefixe = "stac-data/" + S3_DATA_PREFIX
+        s3_paths = [Path(p).relative_to(CATALOG_DIR) for p in stac_files]
+        upload_s3(local_paths=stac_files, S3_BUCKET=S3_BUCKET,
+                  s3_paths=s3_paths, S3_PREFIX=prefixe, **S3_CREDENTIALS)
+
+        # Le catalogue en ligne doit être exactement celui qu'on vient d'écrire :
+        # l'ancienne arborescence par variable laisserait sinon des collections
+        # et des items orphelins, que rien ne référencerait plus.
+        attendus = {f"{prefixe}/{p}" for p in s3_paths}
+        obsoletes = [k for k in list_s3_files(S3_BUCKET, S3_PREFIX=prefixe + "/",
+                                              **S3_CREDENTIALS)
+                     if k not in attendus]
+        if obsoletes:
+            print(f"\n   {len(obsoletes)} objet(s) de catalogue obsolète(s) à retirer")
+            delete_s3_files(obsoletes, S3_BUCKET=S3_BUCKET, **S3_CREDENTIALS)
 
     print("\n✨ Pipeline terminé")
 

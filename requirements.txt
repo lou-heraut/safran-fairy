@@ -6,3 +6,6 @@ python-dotenv
 art
 xarray
 boto3
+
+# Vérification facultative de la conformité du catalogue STAC
+stac_valid

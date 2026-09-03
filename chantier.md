@@ -377,33 +377,45 @@ n'est pas inventée. **Proposé, non fait.**
 
 ### Phase 5, le catalogue STAC
 
-Structurellement propre, catalogue racine puis collection puis sous-collections
-par variable, mais il ne déclare presque rien de ce qui le rendrait exploitable
-par un client. État des lieux, du plus rentable au moins :
+Refondu. Le point de départ n'était pas seulement pauvre, il était **invalide** :
+`stac-valid` refusait tous les items sur `'collection' is a required property`,
+un item portant un lien vers sa collection devant aussi porter son identifiant
+en champ racine. Les 52 items en ligne l'étaient depuis l'origine. Personne ne
+l'avait vu parce que STAC Browser est tolérant.
 
-| Manque | Effet | FAIR |
-|---|---|---|
-| `stac_extensions` absent | tous les champs ajoutés sont invisibles aux clients, qui ne savent pas les interpréter | I |
-| extension `datacube` | c'est **le** manque principal pour de la donnée grillée : `cube:dimensions` et `cube:variables` disent la grille, le pas de temps, les unités et l'étendue sans télécharger le fichier | F, I |
-| extension `projection` | `proj:code`, `proj:shape`, `proj:transform` : le CRS n'existe aujourd'hui que dans le NetCDF | I |
-| extension `file` | `file:size` et `file:checksum` : aucune vérification d'intégrité possible après téléchargement | A, R |
-| extension `scientific` | `sci:doi` et `sci:citation` remplacent le champ libre `doi` | F, R |
-| extension `processing` | `processing:software`, `processing:datetime`, `processing:lineage` : dire de quelles ressources amont et de quelle version du code sort un fichier. C'est la traçabilité, aujourd'hui absente. | R |
-| `unite`, `periode_agregation` en champs libres | non standard, aucun client ne les lit | I |
-| `license: "etalab-2.0"` | n'est pas un identifiant SPDX ; STAC attend un SPDX, ou `"other"` accompagné d'un lien de licence | R |
-| `created` et `updated` absents | impossible de savoir depuis un client si la donnée a bougé | R |
-| `summaries` et `item_assets` absents sur la collection | un client ne peut pas résumer le contenu sans parcourir tous les items | F |
-| `stac_version` 1.0.0 | 1.1.0 est la version courante | I |
-| catalogue racine écrit à la main | il vit sur le S3 hors du code, dérive garantie | R |
-| 26 sous-collections d'un item | à un fichier par variable la hiérarchie ne sert plus ; une collection unique de 26 items serait plus lisible et plus standard | F |
+- [x] structure aplatie : une collection, un item par fichier. Les 26 sous
+      collections d'un item chacune ne servaient plus rien une fois passé à un
+      fichier par variable.
+- [x] `stac_version` 1.1.0 et `stac_extensions` déclarées, sans quoi rien de ce
+      qu'on ajoute n'est interprétable par un client.
+- [x] `datacube` : `cube:dimensions` et `cube:variables` donnent la forme et
+      l'étendue du cube, le pas de temps et les unités, sans télécharger 420 Mo.
+- [x] `projection` : `proj:code`, `proj:shape`, `proj:bbox`.
+- [x] `file` : `file:size`, et `file:checksum` en multihash SHA-256 calculé sur
+      la copie locale quand elle correspond au bucket à l'octet près. Vérifié
+      contre un `sha256sum` indépendant.
+- [x] `scientific` : `sci:doi` et `sci:citation` remplacent le champ libre.
+- [x] `processing` : logiciel, date et filiation, la traçabilité qui manquait.
+- [x] `created` et `updated`, `providers`, `summaries`, `item_assets`.
+- [x] licence : `"other"` plus un lien, `etalab-2.0` n'étant pas un identifiant
+      SPDX et STAC n'acceptant que ceux-là ou `"other"`.
+- [x] validation dans le pipeline : `stac-valid batch` passe sur 53 fichiers
+      sur 53, extensions comprises. `stac_valid` est en dépendance facultative.
+- [x] le catalogue racine n'est **pas** regénéré, il est partagé avec les autres
+      jeux du data lake et l'écrire d'ici effacerait leurs liens. Le code
+      vérifie qu'il référence bien la collection et prévient sinon.
+- [x] les objets de catalogue devenus obsolètes sont retirés du bucket à la
+      publication, sans quoi l'ancienne arborescence par variable laisserait 78
+      objets orphelins.
 
-- [ ] déclarer les extensions et remplacer les champs libres
-- [ ] aplatir la hiérarchie une fois le nouveau nommage en place
-- [ ] générer le catalogue racine depuis le code
-- [ ] valider avec `stac-validator` et ajouter cette validation au pipeline,
-      au même titre que `check.py` pour les données
-- [ ] vérifier le rendu dans l'instance STAC Browser déjà déployée sur
-      `catalog.riverly-data-lake.inrae.fr`
+- [ ] **non publié**. La nouvelle structure déplace les items de
+      `<VAR>/items/X.json` vers `items/X.json` : autant que ce changement d'URL
+      arrive une seule fois, à la republication de la phase 3, plutôt que deux.
+- [ ] une fois `file:checksum` en ligne, faire reposer la décision d'envoi sur
+      l'empreinte plutôt que sur la taille, ce qui lève la limite notée en
+      phase 6.
+- [ ] vérifier le rendu dans l'instance STAC Browser de
+      `catalog.riverly-data-lake.inrae.fr`.
 
 ### Phase 6, efficacité et empreinte
 
