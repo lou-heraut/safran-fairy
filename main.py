@@ -187,24 +187,21 @@ def main() -> None:
         apply_s3_bucket_cors(S3_BUCKET=S3_BUCKET, **S3_CREDENTIALS)
         return
 
-    downloaded = None
     csv_files = None
     parquet_files = None
     outputs = None
 
     if args.download:
-        downloaded = download(STATE_FILE, DOWNLOAD_DIR,
-                              METEO_BASE_URL, METEO_DATASET_ID)
-        if not downloaded:
-            print("\n✨ Rien de nouveau en amont, la chaîne s'arrête ici")
-            return
-        csv_files = [Path(DOWNLOAD_DIR) / r.filename for r in downloaded]
+        download(STATE_FILE, DOWNLOAD_DIR, METEO_BASE_URL, METEO_DATASET_ID)
 
     enchaine = args.decompress and args.split and args.convert
     if enchaine:
-        if csv_files is None:
-            csv_files = sorted(f for f in Path(DOWNLOAD_DIR).glob("*.csv.gz")
-                               if is_data_filename(f.name))
+        # Toutes les sources, jamais seulement celles qu'on vient de télécharger :
+        # le cache peut être incomplet pour d'autres raisons, un run interrompu
+        # ou un dossier vidé à la main, et rien ne le rattraperait. La règle de
+        # saut par fichier rend ce parcours quasi gratuit, quelques stat().
+        csv_files = sorted(f for f in Path(DOWNLOAD_DIR).glob("*.csv.gz")
+                           if is_data_filename(f.name))
         process_sources(csv_files, variables)
     else:
         # Étapes lancées séparément : comportement inchangé, pour déboguer.

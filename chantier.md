@@ -139,6 +139,19 @@ chez les voisins, mais fait disparaître `safran_fairy` du code alors que
 
 ## Journal
 
+**2026-09-03, mise en production.** Premier essai sur la VM, sur `T` et
+`TINF_H`. `check.py` a rejeté les deux sorties : chronique commençant en 2000
+et deux trous. Ce n'était pas une régression mais le contrôle faisant son
+travail, et la démonstration de ce qui manquait le 4 août.
+
+La cause était une optimisation prématurée dans `main.py` : le traitement ne
+portait que sur les fichiers que le téléchargement venait de rapporter. Le
+cache ayant été vidé à la main avant la mise à jour, les 58 autres années
+n'étaient pas reconverties et l'assemblage a fait ce qu'il pouvait avec 11
+années trouées. Corrigé : le parcours porte sur toutes les sources, la règle de
+saut le rendant gratuit.
+
+
 **2026-09-03.** Session entière. Diagnostic, réécriture de la chaîne,
 assainissement du S3, validation sur `T` contre le dernier fichier de
 production, refonte du fichier NetCDF et du catalogue, optimisations de flux,

@@ -71,6 +71,11 @@ dans les messages de commit ; ici, seulement de quoi ne pas défaire le travail.
 - Le glissant et le fichier annuel sont **d'accord au bit près** sur leur
   recouvrement. La règle qui fait primer l'annuel est un départage prudent, pas
   une correction.
+- **Le traitement parcourt toutes les sources, jamais le seul lot téléchargé.**
+  Le cache peut être incomplet pour d'autres raisons qu'un téléchargement
+  récent, un run interrompu ou un dossier vidé à la main, et restreindre au lot
+  produirait une chronique trouée. La règle de saut par fichier rend le parcours
+  complet gratuit : 6 ms pour 70 sources sur 26 variables.
 - **`00_data-download` est un miroir exact** : ce que l'amont ne publie plus est
   supprimé au début de chaque téléchargement. Sans cela les fichiers orphelins
   s'accumulent à chaque recomposition, comme les 8,4 Go laissés par le découpage
