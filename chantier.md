@@ -25,16 +25,18 @@ corrige, plus que le symptôme.
 
 ## Où on en est
 
-La chaîne est réécrite, validée sur une variable de bout en bout, et rien n'est
-encore reconstruit en production.
+La production est reconstruite et publiée. Les 26 fichiers en ligne couvrent
+1958-08-01 à 2026-09-08, le bucket ne contient plus qu'eux, et le catalogue est
+valide. Reste à republier ce catalogue avec l'emprise corrigée, et à surveiller
+les premières exécutions automatiques.
 
 ```
-phase 0   S3 assaini            fait, 132 objets retirés sur 264
+phase 0   S3 assaini            fait, plus aucun fichier hérité
 phase 1   pipeline réécrit      fait
 phase 2   validé sur T          fait, identique à la prod sur 24 806 jours
-phase 3   rebuild et prod       à faire
+phase 3   rebuild et prod       fait, sauf la surveillance
 phase 4   fichier NetCDF        fait
-phase 5   catalogue STAC        fait, non publié
+phase 5   catalogue STAC        publié, à republier avec l'emprise corrigée
 phase 6   flux et empreinte     fait
 phase 7   documentation         fait
 phase 8   hygiène du dépôt      partiellement fait
@@ -59,19 +61,20 @@ Aucun `glob` ne décide plus de rien.
 
 ### Phase 3, remettre la production en route
 
-- [ ] rebuild complet des 26 variables sur le serveur. Tout est à refaire depuis
-      la validation sur `T` : le découpage interne, la grille à 143 colonnes,
-      les coordonnées, les bornes de temps, les métadonnées CF et le
-      géoréférencement ont tous changé depuis.
-- [ ] vider `data/safran-fairy/` et `stac-data/` avant de republier, pour retirer
-      les `historical` et `previous` hérités.
-- [ ] publier le catalogue refondu. Il n'a pas été publié jusqu'ici parce que la
-      structure aplatie déplace les URL des items : autant que ce changement
-      arrive une seule fois.
-- [ ] relancer le timer, surveiller trois exécutions.
-- [ ] mesurer le rebuild complet et reporter les chiffres dans INSTALL.md. Sur
-      une variable, 10 min 50 dont 4 min 43 de découpage. Le facteur ne sera pas
-      26, le CSV n'étant lu qu'une fois.
+- [x] rebuild complet des 26 variables sur le serveur, le 9 septembre.
+- [x] vider `data/safran-fairy/` et `stac-data/` des `historical` et `previous`
+      hérités. 52 objets et 18,4 Go retirés du premier, les 78 objets de
+      l'ancienne arborescence du second partant avec la publication du nouveau
+      catalogue.
+- [x] publier le catalogue refondu.
+- [ ] **republier le catalogue avec l'emprise corrigée.** Celui du 9 septembre à
+      14:52 porte encore l'ancienne bbox, celle de la France continentale sans
+      la Corse. Un `git pull` puis `make run-ui` suffit, rien n'est à
+      reconstruire.
+- [ ] surveiller trois exécutions automatiques. Le timer est actif, la première
+      est celle de la nuit du 9 au 10 septembre.
+- [ ] reporter dans INSTALL.md les mesures du 9 septembre, à la place des
+      estimations faites sur une variable.
 
 ### Phase 8, hygiène du dépôt
 
@@ -120,6 +123,32 @@ chez les voisins, mais fait disparaître `safran_fairy` du code alors que
 `safran-fairy` reste dans les URL publiques. Sans urgence.
 
 ## Journal
+
+**2026-09-09, la production est en ligne.** Le rebuild complet est passé, 26
+variables assemblées en 2 h 10, contrôlées sans rejet et publiées. Quatre
+défauts ont été trouvés en le faisant, tous corrigés le jour même.
+
+Le catalogue plantait après la publication des données, sur une comparaison
+entre `None` et une chaîne : le tri supposait qu'un seul nommage était en ligne
+alors que le code annonce le contraire deux lignes plus haut. C'était le premier
+run à publier le nommage cible à côté des hérités.
+
+L'emprise du catalogue était celle de la France continentale, sans la Corse ni
+l'est du domaine, sous un commentaire affirmant qu'elle venait de la grille de
+référence. Repérée à l'œil sur la carte de STAC Browser, pas par un contrôle.
+Rien ne vérifie l'emprise publiée, c'est une lacune de `check.py`.
+
+Le journal du service n'arrivait qu'à la fin du run : sous systemd la sortie de
+Python part par blocs, et pendant deux heures rien ne disait si le run
+travaillait ou s'il était mort. Les horodatages posés par `report.py` ne
+servaient à rien.
+
+Un assemblage interrompu laissait derrière lui des fichiers que personne ne
+ramassait, et dont un seul suffit à bloquer un contrôle du dossier entier.
+
+Ce qui a bien marché : la reprise. Un run coupé par une déconnexion, relancé
+tel quel, a repris sans rien refaire d'inutile, 69 sources sur 70 sautées en
+onze secondes.
 
 **2026-09-03, deux imports manquants en production.** Une modification par
 substitution de texte peut échouer sans rien dire quand son ancre a bougé :
