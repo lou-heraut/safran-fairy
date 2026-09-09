@@ -113,6 +113,30 @@ DOI que le catalogue cite, donc elle prime sur le reste pour qui arrive par là.
       du service, y compris dans le préfixe S3 et les identifiants STAC.
 - [ ] `pyproject.toml` à la place de `requirements.txt`, avec `SCRIPT_VERSION`
       comme version unique de vérité, propagée à `CITATION.cff`.
+- [ ] **trancher la place des scripts de mesure, et celle de l'annexe.**
+      `mesures/` a été créé le 9 septembre pour ne pas perdre `alignement.py` et
+      `profils.py`, qui fondent les chiffres que l'attribut `comment` du fichier
+      Hargreaves et le commit `8a96753` citent. La disposition, elle, reste à
+      décider.
+
+      Ce qui est vérifié : les deux voisins mettent leur point d'entrée à la
+      racine, `download_onde.py` et `download_vigieau.py`, avec un seul dossier
+      de paquet, un `pyproject.toml`, et ni `scripts/` ni `tools/`.
+      `etp_hargreaves.py` à la racine est donc conforme à la famille, et
+      `verifier_reprise.py` a son analogue exact dans `verifier_vigieau.py`.
+
+      Ce qui n'a pas de convention, c'est une troisième nature de fichier : du
+      code lancé une seule fois, que personne ne relance, mais qui fonde une
+      affirmation publiée. D'où `mesures/`, qui est une proposition et pas une
+      décision. `script_create_grid.R` est laissé à la racine à dessein : c'est
+      un utilitaire qui fabrique `resources/grid-SIM.gpkg`, pas une mesure.
+
+      Si la disposition est retenue, restent à faire : fondre `alignement.py` et
+      `profils.py`, qui répondent à une seule question, celle de la fenêtre de
+      l'ETP ; et, avec le renommage déjà prévu de `main.py` en `sync_sim2.py`,
+      renommer `etp_hargreaves.py` en `sync_etp_hargreaves.py`. La racine prend
+      alors une forme qui se lit sans ouvrir un fichier, deux `sync_*` et un
+      `verifier_*`.
 - [x] **affichages refondus.** Ils supposaient que chaque étape ne tournait
       qu'une fois : depuis la boucle, `tprint` était appelé 210 fois et chaque
       `RÉSUMÉ` portait sur un seul fichier. La phase de traitement passe de

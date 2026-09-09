@@ -11,7 +11,9 @@ faits mesurés qu'on risquerait de « corriger » par erreur.
 
 Dépôt d'une famille : convention de nommage `get-data-<plateforme>-<jeu de
 données>`. Voisins dans le dossier parent, `get-data-hubeau-onde`, le modèle de
-référence, et `get-data-vigieau-secheresse`. Renommage prévu en
+référence, et `get-data-vigieau-secheresse`. La disposition est commune elle
+aussi, et vérifiée sur les deux : point d'entrée à la racine, un seul dossier
+de paquet, `pyproject.toml`, ni `scripts/` ni `tools/`. Renommage prévu en
 `get-data-meteofrance-sim2`.
 
 Différence assumée : les voisins sont des téléchargeurs qu'on lance à la
