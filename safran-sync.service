@@ -8,6 +8,10 @@ Type=oneshot
 User=safran-fairy
 Group=safran-fairy
 WorkingDirectory=/opt/safran-fairy
+# Sans cela Python bufferise sa sortie vers le journal et n'y écrit qu'à
+# la fin : toutes les lignes du run arrivent avec le même horodatage, et
+# « journalctl -f » ne montre rien pendant des heures.
+Environment=PYTHONUNBUFFERED=1
 ExecStart=/opt/safran-fairy/.python_env/bin/python main.py --all
 StandardOutput=journal
 StandardError=journal

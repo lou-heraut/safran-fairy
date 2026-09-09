@@ -98,6 +98,13 @@ make run-as-service     # comme le ferait systemd
 le mettre en ligne, typiquement après une mise à jour qui change le contenu des
 fichiers produits.
 
+**Un run complet ne survit pas à une déconnexion.** Il dure des heures et une
+coupure de la session SSH le tue là où il en est. Le passer par le service,
+`make service-restart`, le confie à systemd : il tourne alors sous son propre
+utilisateur, indépendant de la session, et c'est de surcroît le chemin exact de
+la production. À défaut, `tmux` ou `screen`. Interrompre le `systemctl start`
+avec Ctrl-C ne coupe que l'attente du client, jamais le service.
+
 Chaque étape s'exécute aussi seule, pour reprendre ou déboguer :
 
 ```bash
@@ -139,6 +146,16 @@ make data-stats                 # volumes et date de la dernière sortie
 Le service écrit dans le journal systemd, pas dans un fichier : `journalctl -u
 safran-sync.service` est le point d'entrée, et il n'y a pas de logrotate à
 configurer.
+
+Pour savoir si un run est en cours, c'est `systemctl is-active
+safran-sync.service` qui répond : `activating` pendant toute la durée d'un
+service `oneshot`, `inactive` une fois fini. Le journal ne répond pas à cette
+question, parce qu'un run qui n'écrit rien depuis une heure peut très bien être
+en train de travailler. Suivre l'avancement se fait alors sur le disque :
+
+```bash
+watch -n 60 'ls -lt /var/lib/safran-fairy/04_data-output | head -5'
+```
 
 Un run qui se termine bien affiche le nombre de fichiers assemblés, contrôlés et
 envoyés. **Rien n'est publié si le contrôle rejette un fichier** : le processus
