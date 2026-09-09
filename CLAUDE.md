@@ -155,19 +155,29 @@ kilogrammes par mètre carré, plus SWI et SSWI_10J qui n'ont pas d'équivalent.
 Leur en donner un imposerait de changer l'étiquette d'unité. C'est un choix,
 tranché avec Louis, pas un oubli.
 
-Les fenêtres d'agrégation se lisent à deux niveaux, et il faut les distinguer.
-**L'étiquette est documentée**, par la fiche `sim-quotidienne-parametres` que
-`00_data-download` conserve : « cumul quotidien ]06UTC-06UTC] », « moyenne
-quotidienne ]00UTC-00UTC] », et ainsi de suite. **Le sens ne l'est pas** : rien
-ne dit si le ]06UTC-06UTC] de la date J part du J ou du J-1. Il a été établi sur
-les données, et c'est lui que le README publie.
+Les fenêtres d'agrégation se lisent à deux niveaux. **L'étiquette est
+documentée**, par la fiche `sim-quotidienne-parametres` que `00_data-download`
+conserve : « cumul quotidien ]06UTC-06UTC] », « moyenne quotidienne
+]00UTC-00UTC] », et ainsi de suite. **Le sens ne l'est pas**, mais il suit une
+règle simple : *la fenêtre est placée de façon que le maximum de sa durée tombe
+sur le jour J*. Une ]06UTC-06UTC] part donc du J et déborde de six heures sur le
+J+1, tandis qu'une ]18UTC-18UTC] part de la veille. **`TINF_H` est la seule
+variable dont la fenêtre commence le jour d'avant.** La règle reproduit les
+vingt bornes encodées dans la fiche de variables, 18 heures sur J partout, et
+c'est elle que le README publie.
 
-**`ETP` est la seule variable sans étiquette.** La fiche ne lui donne que sa
-formule, dans sa version de mars 2026 comme dans la précédente. Le
-`]06UTC-06UTC]` du README et le `6:30` de la fiche de variables viennent d'une
-analogie avec `EVAP` et `PE`, et une mesure du 9 septembre les soutient sans les
-démontrer. Ne pas les présenter comme sourcés, et ne pas les retirer non plus
-sans lire la question ouverte de [chantier.md](chantier.md).
+**Les deux ETP n'ont pas de fenêtre, et c'est normal.** La fiche ne donne aucune
+étiquette à `ETP`, ni dans sa version de mars 2026 ni dans la précédente :
+vérifié sur l'extraction brute, où la cellule d'`EVAP` porte sa fenêtre et celle
+d'`ETP` seulement la fin du nom de sa formule. La raison est que la FAO-56
+Penman-Monteith se calcule à partir d'entrées aux fenêtres différentes,
+`TSUP_H` en ]06UTC-06UTC], `TINF_H` en ]18UTC-18UTC], `FF`, `HU`, `SSI` et `DLI`
+en ]00UTC-00UTC] : aucune fenêtre unique ne la décrit. L'ETP FAO Hargreaves de
+l'annexe est dans le même cas, et ne déclare rien.
+
+Le dépôt, lui, déclare encore `]06UTC-06UTC]` et un `time_bnds` pour `ETP`, par
+analogie avec `EVAP` et `PE`. **Ne pas prendre cette analogie pour une source.**
+Voir la question ouverte de [chantier.md](chantier.md).
 
 ## Vérifications après modification
 

@@ -210,72 +210,50 @@ l'en-tête plutôt que le nom.
 
 ## Questions ouvertes
 
-**Les fenêtres d'agrégation, et ce qui les fonde.** Ouvert le 9 septembre en
-travaillant l'annexe, et cela ne concerne pas qu'elle. Trois degrés de certitude
-coexistent aujourd'hui dans ce que le dépôt publie, sans que rien ne les
-distingue pour le lecteur.
+**La fenêtre d'agrégation déclarée pour `ETP`.** Ouvert le 9 septembre en
+travaillant l'annexe. Deux points sont refermés, un seul reste.
 
-```
-                                  étiquette      sens de la       ce que le
-                                  documentée ?   fenêtre ?        dépôt publie
-------------------------------------------------------------------------------
-24 variables SIM2                 oui, fiche     mesuré ici       étiquette
-  précipitations, T, FF, Q,       Météo-France   sur 53 241       et time_bnds
-  DLI, SSI, HU, EVAP, PE, SWI,    des para-      jours de
-  drainage, ruissellement,        mètres         fonte nivale
-  neige, TINF_H, TSUP_H...        quotidiens
+**Le sens des fenêtres est réglé**, et ne relevait pas d'une mesure au coup par
+coup : la fenêtre est placée de façon que le maximum de sa durée tombe sur le
+jour J. Une ]06UTC-06UTC] part donc du J, une ]18UTC-18UTC] de la veille, et
+`TINF_H` est la seule variable dans ce cas. Contrôlé : la règle reproduit les
+vingt bornes de `resources/safran-variables_2026-09-03.csv`, 18 heures sur J
+partout. C'est écrit dans CLAUDE.md, il n'y a plus à le redécouvrir.
 
-SSWI_10J, HTEURNEIGEX             non            sans objet       rien, « - »
+**L'absence de fenêtre sur les deux ETP est normale**, et non une lacune de la
+documentation. La fiche `sim-quotidienne-parametres` ne donne aucune étiquette à
+`ETP`, ni en mars 2026 ni dans sa version précédente : vérifié sur l'extraction
+brute du PDF, où la cellule d'`EVAP` porte sa fenêtre et celle d'`ETP` seulement
+la fin du nom de sa formule. La raison est que la FAO-56 Penman-Monteith se
+calcule à partir d'entrées aux fenêtres différentes, `TSUP_H` en ]06UTC-06UTC],
+`TINF_H` en ]18UTC-18UTC], `FF`, `HU`, `SSI` et `DLI` en ]00UTC-00UTC] : aucune
+fenêtre unique ne la décrit. L'ETP FAO Hargreaves de l'annexe est dans le même
+cas, pour la même raison, et ne déclare rien.
 
-ETP                               NON            non établi      ]06UTC-06UTC]
-                                                                  et time_bnds
-```
+**Ce qui reste : le dépôt déclare quand même une fenêtre pour `ETP`.** Le README
+annonce `]06UTC-06UTC]` et la fiche de variables écrit `6:30`, donc un
+`time_bnds`, dans le fichier publié. Cela vient d'une analogie avec `EVAP` et
+`PE` faite au moment d'écrire la fiche. Si le raisonnement ci-dessus tient,
+l'analogie n'est pas seulement non sourcée, elle est fausse : elle attribue à
+une grandeur composite la fenêtre d'une de ses voisines.
 
-**Le point dur est `ETP`.** La fiche `sim-quotidienne-parametres` donne pour
-chaque variable cumulée « cumul quotidien ]06UTC-06UTC] », et pour `ETP` elle ne
-donne que la formule, Penman-Monteith FAO-56. Vérifié sur les deux versions de
-la fiche que porte `00_data-download`, celle de mars 2026 et la précédente : la
-ligne de fenêtre manque dans les deux. Le `]06UTC-06UTC]` que le README annonce
-et le `6:30` que la fiche de variables écrit en `time_bnds` viennent donc d'une
-analogie avec `EVAP` et `PE`, pas d'une source ni d'une mesure. C'est la seule
-affirmation du dépôt qui ne repose ni sur l'une ni sur l'autre.
+Une mesure du 9 septembre dit ce qu'elle peut. Contre la température, en
+]00UTC-00UTC], l'ETP de SIM2 corrèle plus fort en J+1 qu'en J-1, de +0,100 sur
+anomalies désaisonnalisées, 1970-2024, 30 mailles. Elle penche donc vers
+l'avant, comme le ferait une ]06UTC-06UTC], ce qui n'étonne pas d'un composite
+dont la plupart des entrées sont en ]00UTC-00UTC] et dont la Tmax est en
+]06UTC-06UTC]. Une comparaison quotidienne ne résout pas six heures, et cette
+mesure ne fait pas d'une fenêtre effective une fenêtre déclarable.
 
-Une mesure faite le 9 septembre la soutient sans la démontrer. Contre la
-température, en ]00UTC-00UTC], l'ETP de SIM2 corrèle plus fort en J+1 qu'en J-1,
-de +0,100 sur anomalies désaisonnalisées, 1970-2024, 30 mailles. Une grandeur
-portée par le jour civil donnerait zéro. **La fenêtre est donc bien décalée vers
-l'avant, mais rien ne dit qu'elle commence à 06 UTC** : une comparaison
-quotidienne ne résout pas six heures.
+**Corriger demanderait** de retirer `periode_agregation` et `bornes_h` de la
+ligne `ETP` de la fiche de variables, de mettre « - » dans le tableau du README
+avec une phrase disant pourquoi, puis de reconvertir les 70 sources pour la
+seule variable `ETP`, de réassembler et de republier 273 Mo. Le `time_bnds`
+s'écrit dans `create_netcdf()`, donc au niveau des fichiers annuels : changer la
+fiche ne suffit pas, il faut repasser la chaîne sur cette variable.
 
-**L'ETP FAO Hargreaves de l'annexe est dans le même cas, en pire :** ni la fiche
-technique du jeu, ni la page DRIAS qu'elle cite, ni DRIAS-Eau, ni la page SAFRAN
-de SICLIMA ne donnent de fenêtre, et la chaîne `ETP_Q_H0175` n'existe nulle part
-ailleurs sur le web. Deux mesures sur 1970-2024 : **aucun décalage de jour avec
-l'ETP de SIM2**, 0,885 à décalage nul contre 0,572 au suivant, l'écart ne laisse
-pas de doute ; et **le même décalage vers l'avant**, +0,072 contre +0,100 pour
-SIM2. Elle est plus faible, ce qui s'explique peut-être par ses entrées, une
-Tmin en ]18UTC-18UTC] et une Tmax en ]06UTC-06UTC], donc par une fenêtre
-effective qui n'est pas celle de SIM2. Ou par le fait que Hargreaves est
-construite sur la température, ce qui relève toutes ses corrélations.
-
-Le fichier annexe **ne déclare donc ni `time_bnds` ni `periode_agregation`**, et
-porte la mesure dans son attribut `comment`. Ce qui laisse le dépôt dans une
-position bancale : la même grandeur, dans deux fichiers, l'une avec des bornes
-qui ne sont pas sourcées et l'autre sans bornes du tout.
-
-Trois issues, par ordre de préférence :
-
-- **demander à Météo-France.** C'est une question d'une ligne, et la réponse
-  vaudrait pour les deux fichiers. Rien d'autre ne clôt le sujet.
-- **retirer `bornes_h` de `ETP` dans la fiche de variables**, et dire dans le
-  README que la fenêtre n'est pas documentée pour cette variable. Honnête,
-  mais retire une information probablement juste, et demande de reconstruire et
-  republier un fichier de 273 Mo.
-- **garder en l'état** et écrire dans le README que le `]06UTC-06UTC]` de `ETP`
-  est déduit de ses voisines. Le moins coûteux, et cela lève le doute pour qui
-  lit.
-
-À trancher avec Louis. En attendant, rien n'est modifié côté production.
+À trancher avec Louis. Rien n'est modifié côté production tant que ce n'est pas
+fait.
 
 **Les huit variables sans `standard_name`.** Tranché le 3 septembre : on garde
 les millimètres, le projet redistribuant la donnée sans en retoucher la
