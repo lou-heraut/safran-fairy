@@ -67,14 +67,36 @@ Aucun `glob` ne décide plus de rien.
       l'ancienne arborescence du second partant avec la publication du nouveau
       catalogue.
 - [x] publier le catalogue refondu.
-- [ ] **republier le catalogue avec l'emprise corrigée.** Celui du 9 septembre à
-      14:52 porte encore l'ancienne bbox, celle de la France continentale sans
-      la Corse. Un `git pull` puis `make run-ui` suffit, rien n'est à
-      reconstruire.
+- [x] republier le catalogue avec l'emprise corrigée, fait le 9 septembre à
+      15:08. Les 26 items portent l'emprise qui couvre les 9 892 points.
 - [ ] surveiller trois exécutions automatiques. Le timer est actif, la première
       est celle de la nuit du 9 au 10 septembre.
 - [ ] reporter dans INSTALL.md les mesures du 9 septembre, à la place des
       estimations faites sur une variable.
+
+### Le dépôt Dataverse, DOI 10.57745/BAZ12C
+
+La fiche décrit encore le jeu d'avant la refonte. Elle est publique et porte le
+DOI que le catalogue cite, donc elle prime sur le reste pour qui arrive par là.
+
+- [ ] **la grille déposée n'est pas la bonne.** `grid-SIM.gpkg` en ligne a
+      8 813 points, le compte de `SIM2.shp`, Corse absente ; son emprise
+      s'arrête à 1 028 000 en x et commence à 1 705 000 en y. Celle du dépôt,
+      reconstruite depuis le CSV le 3 septembre, en a 9 892, de 60 000 à
+      1 196 000 et de 1 617 000 à 2 681 000. À redéposer.
+- [ ] **« Détails des fichiers » décrit le triptyque**, trois fichiers par
+      variable, `historical`, `previous` et `latest`. Ces fichiers ont été
+      retirés du bucket le 9 septembre. À remplacer par le fichier unique nommé
+      avec sa couverture.
+- [ ] le lien vers le code source pointe sur `github.com/louis-heraut`, qui
+      redirige en 301 vers `lou-heraut`. À écrire directement.
+- [ ] `data-access.html` annonce l'URL du catalogue comme lisible « par les
+      utilisateurs humains et machines », alors que
+      `catalog.riverly-data-lake.inrae.fr` sert l'interface de navigation et
+      non du JSON. Même correction que celle faite au README.
+- [x] le PDF de description des variables référencé par la fiche est bien la
+      documentation à jour, malgré le changement des identifiants de ressource
+      en juillet.
 
 ### Phase 8, hygiène du dépôt
 
@@ -109,8 +131,47 @@ Aucun `glob` ne décide plus de rien.
       passer deux contenus de taille rigoureusement identique, ce qui est
       hautement improbable mais n'est pas une preuve.
 - [ ] `cfchecker` sur les fichiers produits, et ce contrôle dans `check.py`.
-- [ ] vérifier le rendu dans l'instance STAC Browser de
-      `catalog.riverly-data-lake.inrae.fr`.
+- [x] vérifier le rendu dans l'instance STAC Browser de
+      `catalog.riverly-data-lake.inrae.fr`. C'est ce coup d'œil qui a trouvé
+      l'emprise fausse.
+- [ ] **contrôler le catalogue avant de le publier**, comme `check.py` contrôle
+      les NetCDF. Rien ne le fait aujourd'hui, et deux défauts sont passés :
+      des items invalides pendant des mois, et une emprise qui laissait la
+      Corse dehors. Ce qu'un tel contrôle devrait vérifier est listé plus bas.
+- [ ] refuser à la publication un fichier dont la variable n'est pas déclarée
+      dans le fichier de métadonnées. `parse_filename` reconnaît
+      `ETP_Q_H0175_QUOT_SIM2_…` comme une sortie valide : un fichier de la
+      production annexe déposé dans `04_data-output` partirait sur le S3 et
+      dans le catalogue. Rien ne l'y met aujourd'hui, mais rien ne l'empêche.
+
+## Ce qu'un contrôle du catalogue devrait vérifier
+
+Le pendant de `check.py` pour le catalogue, qui n'existe pas. Les quatre
+premiers points viennent chacun d'un défaut constaté, les autres du même
+raisonnement appliqué à ce qui n'est pas encore arrivé. Une maquette de ce
+contrôle a été passée sur le catalogue en ligne le 9 septembre : 26 items, zéro
+anomalie.
+
+1. **Les documents sont valides.** Tous les items publiés avant la refonte
+   étaient invalides sur `'collection' is a required property`, des mois durant,
+   sans que personne le voie : STAC Browser est tolérant. La validation se fait
+   aujourd'hui à la main, elle devrait précéder toute publication.
+2. **L'emprise couvre la grille.** Que la bbox de chaque item contienne les
+   9 892 points du fichier de référence. C'est ce qui manquait le 9 septembre.
+3. **Une variable déclarée par item, et tous les items attendus.** Un envoi
+   qui échoue donnerait un catalogue de 23 items sans que rien ne le dise, et
+   une variable étrangère au jeu s'y glisserait sans être vue.
+4. **Les assets répondent et font la taille annoncée.** Une requête HEAD par
+   item, 26 en tout : c'est ce qui distingue un catalogue juste d'un catalogue
+   qui décrit des fichiers absents.
+5. **Chaque asset porte son empreinte.** Le `file:checksum` n'est calculé que
+   si la copie locale correspond à l'octet près ; sans contrôle, son absence
+   passe inaperçue.
+6. **Les liens `child` étrangers survivent.** Le catalogue racine conserve
+   ceux qui ne viennent pas de ce dépôt, et rien ne vérifie qu'ils sont encore
+   là après régénération.
+7. **La licence déclarée est celle des données.** Licence Ouverte 2.0 d'Etalab,
+   jamais celle du code.
 
 ## Questions ouvertes
 

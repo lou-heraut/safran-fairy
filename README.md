@@ -54,14 +54,18 @@ Pour récupérer un fichier directement, l'adresse suit toujours la même forme 
 https://s3-data.meso.umontpellier.fr/riverly-data-lake/data/safran-fairy/<VARIABLE>_QUOT_SIM2_<début>-<fin>.nc
 ```
 
+Les dates du nom changent à chaque mise à jour, et l'adresse d'hier renvoie une
+erreur 404 dès la publication du lendemain. Une commande qui reste valide
+demande donc l'adresse au catalogue plutôt que de la composer :
+
 ```bash
 # la température quotidienne, toute la chronique
-curl -O https://s3-data.meso.umontpellier.fr/riverly-data-lake/data/safran-fairy/T_QUOT_SIM2_19580801-20260901.nc
+curl -O "$(curl -s https://s3-data.meso.umontpellier.fr/riverly-data-lake/stac-data/safran-fairy/items/T_SIM2.json \
+           | jq -r '.assets[].href')"
 ```
 
-Les dates du nom changent à chaque mise à jour. Pour un script qui doit rester
-valide, mieux vaut demander l'adresse au catalogue plutôt que de la composer,
-ce que montre la section Python plus bas.
+En remplaçant `T` par le nom de la variable voulue. La section Python plus bas
+fait la même chose sans `jq`.
 
 ## À quoi ressemblent les données
 
@@ -152,7 +156,10 @@ Pour trouver l'adresse du fichier le plus récent sans la composer à la main :
 ```python
 import requests
 
-collection = "https://catalog.riverly-data-lake.inrae.fr/safran-fairy/collection.json"
+# L'adresse du catalogue lisible par une machine. « catalog.riverly-data-lake.
+# inrae.fr » est l'interface de navigation, qui répond une page et non du JSON.
+collection = ("https://s3-data.meso.umontpellier.fr/riverly-data-lake"
+              "/stac-data/safran-fairy/collection.json")
 liens = requests.get(collection).json()["links"]
 item = next(l for l in liens if l["rel"] == "item" and "/T_SIM2" in l["href"])
 url = requests.get(item["href"]).json()["assets"]["data"]["href"]
