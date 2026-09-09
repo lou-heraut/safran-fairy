@@ -73,6 +73,14 @@ Aucun `glob` ne décide plus de rien.
       est celle de la nuit du 9 au 10 septembre.
 - [ ] reporter dans INSTALL.md les mesures du 9 septembre, à la place des
       estimations faites sur une variable.
+- [ ] **reconstruire et republier `ETP`, qui porte un `time_bnds` de trop.** La
+      fiche de variables lui donnait `]06UTC-06UTC]` et `6:30` par analogie avec
+      `EVAP` et `PE` ; c'est retiré depuis le 9 septembre, le pourquoi est dans
+      CLAUDE.md. Le fichier en ligne, lui, porte encore ces bornes : elles
+      s'écrivent dans `create_netcdf()`, donc au niveau des fichiers annuels, et
+      changer la fiche ne suffit pas. Il faut repasser la chaîne sur cette seule
+      variable, `--variables ETP`, réassembler, contrôler et republier 273 Mo.
+      Le catalogue suit.
 
 ### Le dépôt Dataverse, DOI 10.57745/BAZ12C
 
@@ -209,51 +217,6 @@ file » : le piège est donc invisible en ligne de commande. `extract()` lit
 l'en-tête plutôt que le nom.
 
 ## Questions ouvertes
-
-**La fenêtre d'agrégation déclarée pour `ETP`.** Ouvert le 9 septembre en
-travaillant l'annexe. Deux points sont refermés, un seul reste.
-
-**Le sens des fenêtres est réglé**, et ne relevait pas d'une mesure au coup par
-coup : la fenêtre est placée de façon que le maximum de sa durée tombe sur le
-jour J. Une ]06UTC-06UTC] part donc du J, une ]18UTC-18UTC] de la veille, et
-`TINF_H` est la seule variable dans ce cas. Contrôlé : la règle reproduit les
-vingt bornes de `resources/safran-variables_2026-09-03.csv`, 18 heures sur J
-partout. C'est écrit dans CLAUDE.md, il n'y a plus à le redécouvrir.
-
-**L'absence de fenêtre sur les deux ETP est normale**, et non une lacune de la
-documentation. La fiche `sim-quotidienne-parametres` ne donne aucune étiquette à
-`ETP`, ni en mars 2026 ni dans sa version précédente : vérifié sur l'extraction
-brute du PDF, où la cellule d'`EVAP` porte sa fenêtre et celle d'`ETP` seulement
-la fin du nom de sa formule. La raison est que la FAO-56 Penman-Monteith se
-calcule à partir d'entrées aux fenêtres différentes, `TSUP_H` en ]06UTC-06UTC],
-`TINF_H` en ]18UTC-18UTC], `FF`, `HU`, `SSI` et `DLI` en ]00UTC-00UTC] : aucune
-fenêtre unique ne la décrit. L'ETP FAO Hargreaves de l'annexe est dans le même
-cas, pour la même raison, et ne déclare rien.
-
-**Ce qui reste : le dépôt déclare quand même une fenêtre pour `ETP`.** Le README
-annonce `]06UTC-06UTC]` et la fiche de variables écrit `6:30`, donc un
-`time_bnds`, dans le fichier publié. Cela vient d'une analogie avec `EVAP` et
-`PE` faite au moment d'écrire la fiche. Si le raisonnement ci-dessus tient,
-l'analogie n'est pas seulement non sourcée, elle est fausse : elle attribue à
-une grandeur composite la fenêtre d'une de ses voisines.
-
-Une mesure du 9 septembre dit ce qu'elle peut. Contre la température, en
-]00UTC-00UTC], l'ETP de SIM2 corrèle plus fort en J+1 qu'en J-1, de +0,100 sur
-anomalies désaisonnalisées, 1970-2024, 30 mailles. Elle penche donc vers
-l'avant, comme le ferait une ]06UTC-06UTC], ce qui n'étonne pas d'un composite
-dont la plupart des entrées sont en ]00UTC-00UTC] et dont la Tmax est en
-]06UTC-06UTC]. Une comparaison quotidienne ne résout pas six heures, et cette
-mesure ne fait pas d'une fenêtre effective une fenêtre déclarable.
-
-**Corriger demanderait** de retirer `periode_agregation` et `bornes_h` de la
-ligne `ETP` de la fiche de variables, de mettre « - » dans le tableau du README
-avec une phrase disant pourquoi, puis de reconvertir les 70 sources pour la
-seule variable `ETP`, de réassembler et de republier 273 Mo. Le `time_bnds`
-s'écrit dans `create_netcdf()`, donc au niveau des fichiers annuels : changer la
-fiche ne suffit pas, il faut repasser la chaîne sur cette variable.
-
-À trancher avec Louis. Rien n'est modifié côté production tant que ce n'est pas
-fait.
 
 **Les huit variables sans `standard_name`.** Tranché le 3 septembre : on garde
 les millimètres, le projet redistribuant la donnée sans en retoucher la

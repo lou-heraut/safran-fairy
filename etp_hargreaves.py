@@ -285,22 +285,25 @@ def _stamp_provenance(path: Path, spans: list[str]) -> None:
         ds.setncattr("source", "SAFRAN, ETP FAO Hargreaves")
         ds.setncattr("references",
                      "https://meteo.data.gouv.fr/datasets/667eae35510cd549fc7722c1")
-        # La fenêtre d'agrégation quotidienne n'est écrite dans aucune
-        # documentation du producteur. Deux choses ont été mesurées, une
-        # troisième ne l'est pas : on écrit les trois, plutôt que de déclarer
-        # des bornes que la mesure ne porte pas. Voir chantier.md.
+        # Pas de fenêtre d'agrégation, et ce n'est pas une lacune : cette ETP
+        # se calcule à partir d'entrées SAFRAN qui n'ont pas la même journée,
+        # donc aucune fenêtre unique ne la décrit. Le dire, plutôt que de
+        # laisser croire qu'une fenêtre existe et nous échappe. Voir CLAUDE.md.
         ds.setncattr("comment",
-                     "Fenêtre d'agrégation quotidienne : non documentée par le "
-                     "producteur. Mesuré sur 1970-2024, 30 mailles : aucun "
-                     "décalage de jour avec l'ETP de SIM2 (corrélation des "
-                     "anomalies 0,885 à décalage nul contre 0,572 au suivant) ; "
-                     "fenêtre décalée vers l'avant par rapport au jour civil, "
-                     "comme celle de SIM2 (corrélation contre la température "
-                     "plus forte en J+1 qu'en J-1, +0,072 contre +0,100 pour "
-                     "SIM2). L'heure des bornes n'est pas établie : aucune "
-                     "borne n'est donc déclarée, et time_bnds est absent. "
-                     "Fichier non publié, produit hors du service safran-fairy, "
-                     "qui ne diffuse que SIM2.")
+                     "Cette grandeur n'a pas de fenêtre d'agrégation "
+                     "quotidienne et n'en déclare donc aucune : elle se calcule "
+                     "à partir d'entrées SAFRAN qui n'ont pas la même journée, "
+                     "températures minimale et maximale, vent, tension de "
+                     "vapeur, insolation et rayonnement global. Aucune fenêtre "
+                     "unique ne la décrit, et Météo-France n'en donne pas, pas "
+                     "plus que pour l'ETP Penman-Monteith FAO-56 de SIM2. "
+                     "L'alignement, lui, est mesuré sur 1970-2024 et 30 "
+                     "mailles : la date porte le même jour que celle de l'ETP "
+                     "de SIM2, sans décalage, corrélation des anomalies "
+                     "désaisonnalisées de 0,885 à décalage nul contre 0,572 au "
+                     "plus proche voisin. Les deux fichiers se lisent donc sur "
+                     "le même axe de dates. Fichier non publié, produit hors du "
+                     "service safran-fairy, qui ne diffuse que SIM2.")
 
 
 def assemble(decades: list[Path], directory: Path) -> Path:

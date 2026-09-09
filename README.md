@@ -111,7 +111,7 @@ situer un point sans avoir à reprojeter.
 | `SSI` | Rayonnement visible | J/cm2 | ]00UTC-00UTC] |
 | `HU` | Humidité relative | % | ]00UTC-00UTC] |
 | `EVAP` | Evapotranspiration totale | mm | ]06UTC-06UTC] |
-| `ETP` | Evapotranspiration potentielle (Penman-Monteith FAO-56) | mm | ]06UTC-06UTC] |
+| `ETP` | Evapotranspiration potentielle (Penman-Monteith FAO-56) | mm | - |
 | `PE` | Pluies efficaces | mm | ]06UTC-06UTC] |
 | `SWI` | Indice d'humidité des sols | % | ]06UTC-06UTC] |
 | `SSWI_10J` | Indice sécheresse de l'humidité des sols sur 10 jours | sans unité | - |
@@ -202,14 +202,15 @@ nc_close(nc)
 
 ### Les variables n'ont pas toutes la même journée
 
-C'est le piège principal, et il n'est écrit dans aucune documentation
-Météo-France. Selon la variable, la valeur portée par une date ne couvre pas la
-même fenêtre de 24 heures.
+C'est le piège principal. Selon la variable, la valeur portée par une date ne
+couvre pas la même fenêtre de 24 heures. Météo-France nomme ces fenêtres dans sa
+fiche des paramètres quotidiens, mais ne dit pas de quel côté de la date elles
+tombent : c'est ce que la colonne de droite ajoute, établi sur les données.
 
 | Fenêtre | Variables | Ce que couvre la date J |
 |---|---|---|
 | `]00UTC-00UTC]` | `T`, `FF`, `Q`, `DLI`, `SSI`, `HU` | le jour civil J |
-| `]06UTC-06UTC]` | précipitations, bilan hydrique, neige, `TSUP_H` | de J 06 UTC à J+1 06 UTC |
+| `]06UTC-06UTC]` | précipitations, bilan hydrique sauf `ETP`, neige, `TSUP_H` | de J 06 UTC à J+1 06 UTC |
 | `]18UTC-18UTC]` | `TINF_H` | de J-1 18 UTC à J 18 UTC |
 | `06UTC` | `RESR_NEIGE6`, `HTEURNEIGE6`, `WG_RACINE`, `WGI_RACINE` | l'instant J 06 UTC |
 
@@ -218,9 +219,17 @@ la journée, la maximale couvre l'après-midi qui la **suit**. C'est la conventi
 météorologique française. Cumuler des précipitations et des températures sur la
 même date revient donc à additionner des fenêtres décalées de six heures.
 
+**`ETP` n'a pas de fenêtre, et ce n'est pas un oubli.** Elle se calcule à partir
+d'entrées qui n'ont pas la même journée, `TSUP_H` en ]06UTC-06UTC], `TINF_H` en
+]18UTC-18UTC], `FF`, `HU`, `SSI` et `DLI` en ]00UTC-00UTC] : aucune fenêtre
+unique ne la décrit. Météo-France n'en donne pas, et ce dépôt n'en invente pas.
+Il en va de même pour `SSWI_10J`, intégrée sur dix jours, et `HTEURNEIGEX`, un
+maximum horaire.
+
 Ces bornes sont écrites dans les fichiers, en `time_bnds`, donc lisibles par un
-programme. Le sens de chaque fenêtre a été établi sur les données elles-mêmes,
-la documentation ne le précisant pas.
+programme. Sept variables n'en portent pas : les quatre valeurs instantanées de
+06 UTC, qui n'ont pas de durée, et les trois qui n'ont pas de fenêtre. Cette
+absence est une information, elle aussi.
 
 ### Les dernières semaines ne sont pas définitives
 

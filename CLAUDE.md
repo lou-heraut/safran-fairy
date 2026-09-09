@@ -157,27 +157,23 @@ tranché avec Louis, pas un oubli.
 
 Les fenêtres d'agrégation se lisent à deux niveaux. **L'étiquette est
 documentée**, par la fiche `sim-quotidienne-parametres` que `00_data-download`
-conserve : « cumul quotidien ]06UTC-06UTC] », « moyenne quotidienne
-]00UTC-00UTC] », et ainsi de suite. **Le sens ne l'est pas**, mais il suit une
-règle simple : *la fenêtre est placée de façon que le maximum de sa durée tombe
-sur le jour J*. Une ]06UTC-06UTC] part donc du J et déborde de six heures sur le
-J+1, tandis qu'une ]18UTC-18UTC] part de la veille. **`TINF_H` est la seule
-variable dont la fenêtre commence le jour d'avant.** La règle reproduit les
-vingt bornes encodées dans la fiche de variables, 18 heures sur J partout, et
-c'est elle que le README publie.
+conserve. **Le sens ne l'est pas**, mais il suit une règle : la fenêtre est
+placée de façon que le maximum de sa durée tombe sur le jour J. Une
+]06UTC-06UTC] part donc du J et déborde de six heures sur le J+1, une
+]18UTC-18UTC] part de la veille, et `TINF_H` est la seule variable dans ce cas.
+La règle reproduit les dix-neuf bornes encodées dans la fiche de variables,
+18 heures sur J partout.
 
-**Les deux ETP n'ont pas de fenêtre, et c'est normal.** La fiche ne donne aucune
-étiquette à `ETP`, ni dans sa version de mars 2026 ni dans la précédente :
-vérifié sur l'extraction brute, où la cellule d'`EVAP` porte sa fenêtre et celle
-d'`ETP` seulement la fin du nom de sa formule. La raison est que la FAO-56
-Penman-Monteith se calcule à partir d'entrées aux fenêtres différentes,
+**Trois variables n'ont pas de fenêtre du tout, et ce n'est pas un oubli** :
+`ETP`, `SSWI_10J` et `HTEURNEIGEX`. Le cas d'`ETP` est celui qu'on risque de
+« corriger » : la fiche Météo-France ne lui donne que sa formule, là où `EVAP`
+et `PE` portent « cumul quotidien ]06UTC-06UTC] ». C'est cohérent, la FAO-56
+Penman-Monteith se calculant à partir d'entrées aux fenêtres différentes,
 `TSUP_H` en ]06UTC-06UTC], `TINF_H` en ]18UTC-18UTC], `FF`, `HU`, `SSI` et `DLI`
 en ]00UTC-00UTC] : aucune fenêtre unique ne la décrit. L'ETP FAO Hargreaves de
-l'annexe est dans le même cas, et ne déclare rien.
-
-Le dépôt, lui, déclare encore `]06UTC-06UTC]` et un `time_bnds` pour `ETP`, par
-analogie avec `EVAP` et `PE`. **Ne pas prendre cette analogie pour une source.**
-Voir la question ouverte de [chantier.md](chantier.md).
+l'annexe est dans le même cas. **Ne pas leur rendre le `]06UTC-06UTC]` et le
+`time_bnds` que la fiche de variables leur donnait à tort jusqu'au 9 septembre**,
+par analogie avec leurs voisines.
 
 ## Vérifications après modification
 
