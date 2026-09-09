@@ -83,10 +83,10 @@ if MODE == "dev":
 
 from safran_fairy import report
 from safran_fairy import (apply_s3_bucket_cors, apply_s3_bucket_policy, build,
-                          check, clean_local, clean_s3, convert, decompress,
-                          delete_s3_files, download, generate_stac_catalog,
-                          is_data_filename, list_s3_files, process, split,
-                          to_upload, upload_s3)
+                          check, check_catalog, clean_local, clean_s3, convert,
+                          decompress, delete_s3_files, download,
+                          generate_stac_catalog, is_data_filename,
+                          list_s3_files, process, split, to_upload, upload_s3)
 
 S3_CREDENTIALS = dict(S3_ACCESS_KEY=os.getenv("S3_ACCESS_KEY"),
                       S3_SECRET_KEY=os.getenv("S3_SECRET_KEY"),
@@ -218,6 +218,15 @@ def main() -> None:
             METADATA_GRID_FILE=METADATA_GRID_FILE,
             OUTPUT_DIR=OUTPUT_DIR,
             **S3_CREDENTIALS)
+
+        # Le catalogue non plus ne part pas sans avoir été relu : des items
+        # invalides sont restés en ligne des mois, et une emprise fausse un
+        # mois, faute de ce contrôle.
+        if check_catalog(stac_files,
+                         METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
+                         METADATA_GRID_FILE=METADATA_GRID_FILE):
+            sys.exit(1)
+
         prefixe = "stac-data"
         s3_paths = [Path(p).relative_to(CATALOG_DIR) for p in stac_files]
         upload_s3(local_paths=stac_files, S3_BUCKET=S3_BUCKET,

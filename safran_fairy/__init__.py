@@ -22,7 +22,7 @@ from .split import split
 from .convert import convert
 from .process import process, already_converted
 from .build import build, inventory
-from .check import check, check_file
+from .check import check, check_catalog, check_file
 from .clean import clean_local, clean_s3
 from .tools import build_filename, parse_filename
 from .upload_s3 import (apply_s3_bucket_cors, apply_s3_bucket_policy,
@@ -33,7 +33,7 @@ __all__ = [
     "Resource", "list_resources", "data_resources", "describe",
     "check_inventory", "is_data_filename",
     "download", "remove_orphans", "decompress", "process", "already_converted", "split", "convert", "build", "check",
-    "check_file", "inventory",
+    "check_file", "check_catalog", "inventory",
     "clean_local", "clean_s3",
     "parse_filename", "build_filename",
     "apply_s3_bucket_policy", "apply_s3_bucket_cors", "list_s3_files",
