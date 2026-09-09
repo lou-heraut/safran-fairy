@@ -231,7 +231,8 @@ def main() -> None:
                                               **S3_CREDENTIALS)
                      if k not in attendus]
         if obsoletes:
-            print(f"\n   {len(obsoletes)} objet(s) de catalogue obsolète(s) à retirer")
+            report.phase("PURGE DU CATALOGUE",
+                         f"{len(obsoletes)} objet(s) obsolète(s) à retirer")
             delete_s3_files(obsoletes, S3_BUCKET=S3_BUCKET, **S3_CREDENTIALS)
 
     print()

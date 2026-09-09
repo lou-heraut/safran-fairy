@@ -65,12 +65,18 @@ def apply_s3_bucket_cors(S3_BUCKET: str,
 def list_s3_files(S3_BUCKET: str,
                   S3_PREFIX: str = "",
                   extension: str = None,
+                  verbose: bool = False,
                   S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
                   S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
                   S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
                   S3_REGION: str = os.getenv("S3_REGION")):
     """
     Liste les fichiers d'un bucket S3.
+
+    Muette par défaut : dans la chaîne elle sert à calculer, et son appelant
+    rend compte de ce qu'il en fait. Elle imprimait une ligne par clé, soit
+    106 lignes sans horodatage au milieu de la publication du catalogue, pour
+    une liste que personne ne lit. « verbose » la garde utile en interactif.
     """
     s3 = boto3.client('s3',
                       aws_access_key_id=S3_ACCESS_KEY,
@@ -84,9 +90,11 @@ def list_s3_files(S3_BUCKET: str,
         for obj in page.get('Contents', []):
             if extension is None or obj['Key'].endswith(extension):
                 files.append(obj['Key'])
-                print(obj['Key'])
+                if verbose:
+                    line(obj['Key'])
 
-    print(f"\n📊 {len(files)} fichier(s) trouvé(s)")
+    if verbose:
+        summary(objets=len(files), prefixe=f"{S3_BUCKET}/{S3_PREFIX}")
     return files
 
 
@@ -205,4 +213,5 @@ def delete_s3_files(keys: list,
                       region_name=S3_REGION)
     for key in keys:
         s3.delete_object(Bucket=S3_BUCKET, Key=key)
-        print(f"🗑️  {key}")
+        line(f"🗑️  {key}")
+    summary(supprimes=len(keys))
