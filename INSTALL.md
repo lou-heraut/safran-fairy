@@ -30,12 +30,45 @@ Prévoir 50 Go pour être tranquille. Les dossiers `01_data-raw` et
 découpe, convertit, puis efface, ce qui évite de faire cohabiter 44 Go
 d'intermédiaires morts.
 
-Le réseau : 9,4 Go au premier run, puis une vingtaine de mégaoctets par jour, et
-137 Mo par année révisée deux fois par mois.
+Le réseau, en entrée : 9,4 Go au premier run, puis une vingtaine de mégaoctets
+par jour, et 137 Mo par année révisée deux fois par mois. **En sortie, c'est
+8,4 Go à chaque exécution**, les 26 fichiers étant republiés en entier ; voir
+ci dessous pourquoi.
 
 Le dossier des sources est tenu comme un miroir exact du dépôt distant : les
 fichiers que Météo-France ne publie plus sont supprimés au début de chaque
 téléchargement, ce qui évite qu'ils s'accumulent à la prochaine recomposition.
+
+## Ce que ça prend comme temps
+
+Mesuré le 9 septembre 2026 sur la VM de production, cache des années déjà
+constitué, c'est à dire dans les conditions d'une exécution quotidienne :
+
+```
+téléchargement    1 fichier, 20,0 Mo, le glissant seul          0,5 s
+traitement        1 source sur 70, 91 Mo lus, 26 NetCDF        10,8 s
+assemblage        26 variables, 69 années + glissant, 8,4 Go   2 h 10
+contrôle          26 fichiers                                     8 s
+envoi             26 fichiers, 8,4 Go                          1 min 27
+catalogue         26 items, empreintes comprises                 52 s
+                                                              -------
+                                                               2 h 12
+```
+
+**Une exécution quotidienne coûte donc presque autant qu'une reconstruction.**
+La fenêtre glissante change tous les jours et elle est une entrée de chacune des
+26 sorties, donc chacune est réassemblée en entier, réécrite sur le disque et
+renvoyée sur le bucket. Le cache épargne la conversion, pas l'assemblage : 69
+des 70 sources sont sautées en onze secondes.
+
+C'est la contrepartie du fichier unique par variable, et non une régression : le
+triptyque qui l'a précédé publiait lui aussi la chronique entière à chaque
+exécution, sous le nom `latest`, en plus d'en garder deux copies de plus en
+ligne. Ce qui a changé est ce qui est gardé, 8,4 Go au lieu de 26,8, pas ce qui
+est envoyé.
+
+Prévoir donc que la fenêtre de 02:00 dure plus de deux heures, et que le bucket
+reçoive 8,4 Go par nuit.
 
 ## Installation
 
