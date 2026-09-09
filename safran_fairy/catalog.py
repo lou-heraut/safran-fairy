@@ -323,9 +323,14 @@ def generate_stac_catalog(CATALOG_DIR,
                                index_col="variable").to_dict(orient="index")
     x, y = regular_axes(METADATA_GRID_FILE)
 
+    # Le tri porte sur une clé qui accepte les deux nommages : « version » vaut
+    # None sur le nommage cible, et sorted() sur les couples bruts compare alors
+    # None à « historical » dès que la même variable est présente sous les deux
+    # formes, ce qui est le cas tant que le bucket n'a pas été purgé.
+    ordre = sorted(retenus.items(), key=lambda kv: (kv[0][0], kv[0][1] or ""))
     items = [build_item(variable, fichier, var_meta.get(variable, {}),
                         x, y, collection_id, urls)
-             for (variable, _), fichier in sorted(retenus.items())]
+             for (variable, _), fichier in ordre]
     temporel = (min(i["properties"]["start_datetime"] for i in items),
                 max(i["properties"]["end_datetime"] for i in items))
     collection = build_collection(items, var_meta, collection_id, urls, temporel)
