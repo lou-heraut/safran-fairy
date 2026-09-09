@@ -142,10 +142,11 @@ DOI que le catalogue cite, donc elle prime sur le reste pour qui arrive par là.
 - [x] vérifier le rendu dans l'instance STAC Browser de
       `catalog.riverly-data-lake.inrae.fr`. C'est ce coup d'œil qui a trouvé
       l'emprise fausse.
-- [ ] **contrôler le catalogue avant de le publier**, comme `check.py` contrôle
-      les NetCDF. Rien ne le fait aujourd'hui, et deux défauts sont passés :
-      des items invalides pendant des mois, et une emprise qui laissait la
-      Corse dehors. Ce qu'un tel contrôle devrait vérifier est listé plus bas.
+- [x] **contrôler le catalogue avant de le publier.** `check.check_catalog()`
+      applique les sept points listés plus bas et `main.py --ui` s'arrête si
+      un document est rejeté. Éprouvé sur le catalogue publié, accepté, et sur
+      sept défauts fabriqués, tous attrapés, dont les deux qui étaient
+      réellement passés en ligne.
 - [ ] refuser à la publication un fichier dont la variable n'est pas déclarée
       dans le fichier de métadonnées. `parse_filename` reconnaît
       `ETP_Q_H0175_QUOT_SIM2_…` comme une sortie valide : un fichier de la
