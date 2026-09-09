@@ -243,6 +243,7 @@ def convert_decade(gz: Path, span: str, directory: Path,
         csv.unlink()
         ecrit = create_netcdf(parquet[0], directory, VARIABLES_FILE,
                               METADATA_GRID_FILE=grid_file)
+        _stamp_provenance(ecrit, gz.name, "produit")
 
     if ecrit != target:
         raise RuntimeError(f"écrit sous {ecrit.name} au lieu de {target.name}")
@@ -266,21 +267,25 @@ def _ncrcat(pieces: list[Path], target: Path) -> None:
                            f"{result.stderr.strip() or result.stdout.strip()}")
 
 
-def _stamp_provenance(path: Path, spans: list[str]) -> None:
+def _stamp_provenance(path: Path, source: str, action: str) -> None:
     """
-    Réécrit les attributs globaux que ncrcat a hérités de sa première entrée.
+    Réécrit les attributs globaux qui décrivent d'où vient le fichier.
 
-    Sans cela le fichier assemblé se déclare issu du seul Parquet de 1970, ce
-    qui est une provenance fausse sur le fichier qu'on garde.
+    Appelée deux fois, et il faut les deux. Sur la sortie, parce que ncrcat
+    hérite des attributs de sa première entrée et que le fichier assemblé se
+    déclarerait sinon issu du seul Parquet de 1970. Sur chaque décennie, parce
+    que create_netcdf() est écrite pour SIM2 et pose un « title » commençant par
+    SIM2, un « source » nommant SAFRAN-ISBA-MODCOU et des « references » qui
+    renvoient au jeu SIM2 et à son DOI. Ce jeu n'est pas celui-là : laisser ces
+    valeurs sur un fichier qui traîne dans le même dossier que la sortie, c'est
+    y écrire une provenance fausse, et un DOI qu'une citation ramasserait.
     """
-    source = (f"fichier décennal {spans[0]}" if len(spans) == 1
-              else f"fichiers décennaux {spans[0]} à {spans[-1]}")
     with netCDF4.Dataset(path, "a") as ds:
         ds.setncattr("title", "ETP FAO Hargreaves (coefficient 0.175) : "
                               "évapotranspiration potentielle SAFRAN")
         ds.setncattr("history",
                      f"{datetime.now(timezone.utc):%Y-%m-%dT%H:%M:%SZ} : "
-                     f"assemblé par safran-fairy depuis le(s) {source}")
+                     f"{action} par safran-fairy depuis {source}")
         ds.setncattr("source_files", source)
         ds.setncattr("source", "SAFRAN, ETP FAO Hargreaves")
         ds.setncattr("references",
@@ -316,7 +321,10 @@ def assemble(decades: list[Path], directory: Path) -> Path:
     tmp = directory / f"{VARIABLE}_QUOT_SIM2_tmp.nc"
     with report.Chrono() as chrono:
         _ncrcat(decades, tmp)
-        _stamp_provenance(tmp, [p.stem.split("_QUOT_SIM2_")[-1] for p in decades])
+        spans = [p.stem.split("_QUOT_SIM2_")[-1] for p in decades]
+        source = (f"le fichier décennal {spans[0]}" if len(spans) == 1
+                  else f"les fichiers décennaux {spans[0]} à {spans[-1]}")
+        _stamp_provenance(tmp, source, "assemblé")
         with xr.open_dataset(tmp) as ds:
             debut = f"{pd.Timestamp(ds.time.min().values):%Y%m%d}"
             fin = f"{pd.Timestamp(ds.time.max().values):%Y%m%d}"
