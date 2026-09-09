@@ -173,7 +173,109 @@ anomalie.
 7. **La licence déclarée est celle des données.** Licence Ouverte 2.0 d'Etalab,
    jamais celle du code.
 
+## Production annexe, l'ETP FAO Hargreaves
+
+Faite le 9 septembre. Météo-France publie, à côté de SIM2, une ETP calculée par
+la formule FAO dont le terme de rayonnement est estimé par Hargreaves à
+coefficient 0,175, destinée aux comparaisons avec les projections DRIAS,
+Explore2 et TRACC. Même grille SAFRAN, même schéma CSV, 1970 à 2024.
+
+`etp_hargreaves.py` en fait un NetCDF au format du pipeline, dans `annexe-etp/`.
+**Rien n'est publié**, ni sur le S3 ni dans le catalogue, et le service ne voit
+rien de ce que ce script écrit : son jeu de données, son dossier, sa fiche de
+métadonnées, `resources/etp-hargreaves-variables_2026-09-09.csv`. Le
+format n'y est pas réécrit, il vient de `convert.create_netcdf()` et le contrôle
+de `check.check_file()`, le code même qui garde ce qui part en ligne.
+
+Une seule chose a bougé dans le pipeline : `_check_time()` et `check_file()`
+acceptent un `first_day` qui vaut par défaut le 1958-08-01. L'assertion est
+déplacée, pas relâchée, et `verifier_reprise.py` passe inchangé.
+
+```
+sortie   ETP_Q_H0175_QUOT_SIM2_19700101-20241231.nc, 587,1 Mo
+          20 089 pas, 1970-01-01 à 2024-12-31, sans trou ni doublon
+          134 x 143, 9 892 points renseignés, contrôle sain
+sources  921,0 Mo, 6 décennies, 5,2 Go décompressés
+durées   conversion 25 s par décennie, assemblage 7 min 05, 9 min 07 en tout
+          pour un passage où une décennie était déjà convertie
+mémoire  4,3 Go au pic, sur une décennie de 36,1 M lignes
+```
+
+**Le piège : cinq des six sources sont des archives ZIP** portant l'extension
+`.csv.gz`, seule 2020-2024 est un vrai gzip. Constaté sur les octets d'en-tête,
+`PK\x03\x04` contre `\x1f\x8b`. L'outil `gzip` du système lit un ZIP à membre
+unique sans rien dire, le module `gzip` de Python refuse par « Not a gzipped
+file » : le piège est donc invisible en ligne de commande. `extract()` lit
+l'en-tête plutôt que le nom.
+
 ## Questions ouvertes
+
+**Les fenêtres d'agrégation, et ce qui les fonde.** Ouvert le 9 septembre en
+travaillant l'annexe, et cela ne concerne pas qu'elle. Trois degrés de certitude
+coexistent aujourd'hui dans ce que le dépôt publie, sans que rien ne les
+distingue pour le lecteur.
+
+```
+                                  étiquette      sens de la       ce que le
+                                  documentée ?   fenêtre ?        dépôt publie
+------------------------------------------------------------------------------
+24 variables SIM2                 oui, fiche     mesuré ici       étiquette
+  précipitations, T, FF, Q,       Météo-France   sur 53 241       et time_bnds
+  DLI, SSI, HU, EVAP, PE, SWI,    des para-      jours de
+  drainage, ruissellement,        mètres         fonte nivale
+  neige, TINF_H, TSUP_H...        quotidiens
+
+SSWI_10J, HTEURNEIGEX             non            sans objet       rien, « - »
+
+ETP                               NON            non établi      ]06UTC-06UTC]
+                                                                  et time_bnds
+```
+
+**Le point dur est `ETP`.** La fiche `sim-quotidienne-parametres` donne pour
+chaque variable cumulée « cumul quotidien ]06UTC-06UTC] », et pour `ETP` elle ne
+donne que la formule, Penman-Monteith FAO-56. Vérifié sur les deux versions de
+la fiche que porte `00_data-download`, celle de mars 2026 et la précédente : la
+ligne de fenêtre manque dans les deux. Le `]06UTC-06UTC]` que le README annonce
+et le `6:30` que la fiche de variables écrit en `time_bnds` viennent donc d'une
+analogie avec `EVAP` et `PE`, pas d'une source ni d'une mesure. C'est la seule
+affirmation du dépôt qui ne repose ni sur l'une ni sur l'autre.
+
+Une mesure faite le 9 septembre la soutient sans la démontrer. Contre la
+température, en ]00UTC-00UTC], l'ETP de SIM2 corrèle plus fort en J+1 qu'en J-1,
+de +0,100 sur anomalies désaisonnalisées, 1970-2024, 30 mailles. Une grandeur
+portée par le jour civil donnerait zéro. **La fenêtre est donc bien décalée vers
+l'avant, mais rien ne dit qu'elle commence à 06 UTC** : une comparaison
+quotidienne ne résout pas six heures.
+
+**L'ETP FAO Hargreaves de l'annexe est dans le même cas, en pire :** ni la fiche
+technique du jeu, ni la page DRIAS qu'elle cite, ni DRIAS-Eau, ni la page SAFRAN
+de SICLIMA ne donnent de fenêtre, et la chaîne `ETP_Q_H0175` n'existe nulle part
+ailleurs sur le web. Deux mesures sur 1970-2024 : **aucun décalage de jour avec
+l'ETP de SIM2**, 0,885 à décalage nul contre 0,572 au suivant, l'écart ne laisse
+pas de doute ; et **le même décalage vers l'avant**, +0,072 contre +0,100 pour
+SIM2. Elle est plus faible, ce qui s'explique peut-être par ses entrées, une
+Tmin en ]18UTC-18UTC] et une Tmax en ]06UTC-06UTC], donc par une fenêtre
+effective qui n'est pas celle de SIM2. Ou par le fait que Hargreaves est
+construite sur la température, ce qui relève toutes ses corrélations.
+
+Le fichier annexe **ne déclare donc ni `time_bnds` ni `periode_agregation`**, et
+porte la mesure dans son attribut `comment`. Ce qui laisse le dépôt dans une
+position bancale : la même grandeur, dans deux fichiers, l'une avec des bornes
+qui ne sont pas sourcées et l'autre sans bornes du tout.
+
+Trois issues, par ordre de préférence :
+
+- **demander à Météo-France.** C'est une question d'une ligne, et la réponse
+  vaudrait pour les deux fichiers. Rien d'autre ne clôt le sujet.
+- **retirer `bornes_h` de `ETP` dans la fiche de variables**, et dire dans le
+  README que la fenêtre n'est pas documentée pour cette variable. Honnête,
+  mais retire une information probablement juste, et demande de reconstruire et
+  republier un fichier de 273 Mo.
+- **garder en l'état** et écrire dans le README que le `]06UTC-06UTC]` de `ETP`
+  est déduit de ses voisines. Le moins coûteux, et cela lève le doute pour qui
+  lit.
+
+À trancher avec Louis. En attendant, rien n'est modifié côté production.
 
 **Les huit variables sans `standard_name`.** Tranché le 3 septembre : on garde
 les millimètres, le projet redistribuant la donnée sans en retoucher la

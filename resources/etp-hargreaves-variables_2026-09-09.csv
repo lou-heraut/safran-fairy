@@ -1,0 +1,2 @@
+variable,description,unite,unite_cf,standard_name,cell_methods,precision,periode_agregation,bornes_h
+ETP_Q_H0175,Evapotranspiration potentielle FAO Hargreaves (coefficient 0.175),mm,mm,,time: sum,0.001,,

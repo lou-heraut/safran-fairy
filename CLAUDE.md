@@ -155,8 +155,19 @@ kilogrammes par mètre carré, plus SWI et SSWI_10J qui n'ont pas d'équivalent.
 Leur en donner un imposerait de changer l'étiquette d'unité. C'est un choix,
 tranché avec Louis, pas un oubli.
 
-Le sens des fenêtres d'agrégation n'est écrit dans aucune documentation
-Météo-France ; il a été établi sur les données. Voir le README, qui le publie.
+Les fenêtres d'agrégation se lisent à deux niveaux, et il faut les distinguer.
+**L'étiquette est documentée**, par la fiche `sim-quotidienne-parametres` que
+`00_data-download` conserve : « cumul quotidien ]06UTC-06UTC] », « moyenne
+quotidienne ]00UTC-00UTC] », et ainsi de suite. **Le sens ne l'est pas** : rien
+ne dit si le ]06UTC-06UTC] de la date J part du J ou du J-1. Il a été établi sur
+les données, et c'est lui que le README publie.
+
+**`ETP` est la seule variable sans étiquette.** La fiche ne lui donne que sa
+formule, dans sa version de mars 2026 comme dans la précédente. Le
+`]06UTC-06UTC]` du README et le `6:30` de la fiche de variables viennent d'une
+analogie avec `EVAP` et `PE`, et une mesure du 9 septembre les soutient sans les
+démontrer. Ne pas les présenter comme sourcés, et ne pas les retirer non plus
+sans lire la question ouverte de [chantier.md](chantier.md).
 
 ## Vérifications après modification
 

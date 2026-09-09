@@ -25,14 +25,21 @@ from .tools import parse_filename
 
 
 # Measured on the sound files of the archive, not deduced from documentation.
-FIRST_DAY = pd.Timestamp("1958-08-01")
+FIRST_DAY = pd.Timestamp("1958-08-01")  # début de l'archive SIM2, valeur par défaut
 GRID_SHAPE = (134, 143)  # (y, x), grille complète : une colonne ne porte aucun point
 GRID_POINTS = 9892       # cells of the SAFRAN domain inside that rectangle
 SAMPLED_STEPS = 6        # time steps read in full to inspect the grid
 
 
-def _check_time(ds: xr.Dataset, parsed: dict) -> list[str]:
-    """Everything that can go wrong with the time axis."""
+def _check_time(ds: xr.Dataset, parsed: dict,
+                first_day: pd.Timestamp = FIRST_DAY) -> list[str]:
+    """Everything that can go wrong with the time axis.
+
+    "first_day" is the day the record is expected to start on. It is an
+    argument and not a constant only so that a file built from another
+    Météo-France dataset on the same grid can be checked by the same code:
+    the assertion is moved, never relaxed.
+    """
     problems = []
     time = pd.DatetimeIndex(ds.time.values)
 
@@ -60,9 +67,9 @@ def _check_time(ds: xr.Dataset, parsed: dict) -> list[str]:
         problems.append(f"{len(holes)} trou(s) dans la chronique, "
                         f"le premier après le {first}")
 
-    if time[0] != FIRST_DAY:
+    if time[0] != first_day:
         problems.append(f"commence le {time[0].date()} "
-                        f"et non le {FIRST_DAY.date()}")
+                        f"et non le {first_day.date()}")
 
     # The file name announces a coverage: it must be the real one.
     for label, announced, real in [("début", parsed["date_debut"], time[0]),
@@ -147,7 +154,7 @@ def _check_variable(ds: xr.Dataset, variable: str) -> list[str]:
     return problems
 
 
-def check_file(path) -> list[str]:
+def check_file(path, first_day: pd.Timestamp = FIRST_DAY) -> list[str]:
     """Return the list of problems found on one NetCDF file, empty if sound."""
     path = Path(path)
 
@@ -165,10 +172,10 @@ def check_file(path) -> list[str]:
         problems = _check_variable(ds, variable)
         # The grid checks need the variable, so they only run once it is there.
         if not any(p.startswith("variable «") for p in problems):
-            problems += _check_time(ds, parsed)
+            problems += _check_time(ds, parsed, first_day)
             problems += _check_grid(ds, variable)
         else:
-            problems += _check_time(ds, parsed)
+            problems += _check_time(ds, parsed, first_day)
     finally:
         ds.close()
 
