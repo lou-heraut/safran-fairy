@@ -19,6 +19,7 @@ from pathlib import Path
 
 import boto3
 import pandas as pd
+from pyproj import Transformer
 
 from .report import banner, line, phase, summary
 
@@ -34,8 +35,6 @@ EXTENSIONS = [
     "https://stac-extensions.github.io/processing/v1.2.0/schema.json",
 ]
 
-# Envelope of the SAFRAN domain in WGS 84, from the reference grid.
-BBOX = [-4.962155, 42.348763, 8.183832, 51.049739]
 EPSG = 27572
 STEP = 8000
 
@@ -94,10 +93,40 @@ def cube_dimensions(x, y, date_debut: str, date_fin: str) -> dict:
     }
 
 
+def bbox_wgs84(x, y, step: int = STEP) -> list[float]:
+    """
+    L'emprise du raster en WGS 84, calculée sur la grille de référence.
+
+    La valeur était figée dans le code, et c'était celle de la France
+    continentale : elle s'arrêtait à 8,18 est et 42,35 nord, laissant dehors
+    toute la Corse, dont le point le plus au sud est à 41,34 nord et 9,15 est,
+    et l'est du domaine alpin, qui va jusqu'à 10,04 est. Le même piège que
+    « SIM2.shp », qui n'a que 8 813 des 9 892 points, Corse absente.
+
+    Les bornes portent sur les bords de maille et non sur les centres, une
+    demi-maille plus loin de chaque côté, l'emprise décrivant le raster publié.
+    Le contour est densifié parce que la projection conique courbe les bords :
+    les quatre coins seuls placent le nord 0,24 degré trop bas.
+    """
+    demi = step / 2
+    x0, x1 = float(min(x)) - demi, float(max(x)) + demi
+    y0, y1 = float(min(y)) - demi, float(max(y)) + demi
+
+    n = 400
+    bord = ([(x0 + (x1 - x0) * i / (n - 1), bas) for i in range(n)
+             for bas in (y0, y1)]
+            + [(cote, y0 + (y1 - y0) * i / (n - 1)) for i in range(n)
+               for cote in (x0, x1)])
+    lon, lat = Transformer.from_crs(EPSG, 4326, always_xy=True).transform(
+        [p[0] for p in bord], [p[1] for p in bord])
+    return [min(lon), min(lat), max(lon), max(lat)]
+
+
 def build_item(variable, fichier, meta, x, y, collection_id, urls) -> dict:
     """Un item, décrivant un fichier NetCDF publié."""
     item_id = (f"{variable}_SIM2_{fichier['version']}" if fichier["version"]
                else f"{variable}_SIM2")
+    bbox = bbox_wgs84(x, y)
     description = safe_str(meta.get("description")) or variable
     maintenant = f"{datetime.now(timezone.utc):%Y-%m-%dT%H:%M:%SZ}"
 
@@ -118,9 +147,9 @@ def build_item(variable, fichier, meta, x, y, collection_id, urls) -> dict:
         "id": item_id,
         "collection": collection_id,
         "geometry": {"type": "Polygon", "coordinates": [[
-            [BBOX[0], BBOX[1]], [BBOX[2], BBOX[1]], [BBOX[2], BBOX[3]],
-            [BBOX[0], BBOX[3]], [BBOX[0], BBOX[1]]]]},
-        "bbox": BBOX,
+            [bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[2], bbox[3]],
+            [bbox[0], bbox[3]], [bbox[0], bbox[1]]]]},
+        "bbox": bbox,
         "properties": {
             "datetime": None,
             "start_datetime": fmt_date(fichier["date_debut"]),
@@ -164,7 +193,8 @@ def build_item(variable, fichier, meta, x, y, collection_id, urls) -> dict:
     }
 
 
-def build_collection(items, variables_meta, collection_id, urls, temporel) -> dict:
+def build_collection(items, variables_meta, collection_id, urls, temporel,
+                     bbox) -> dict:
     """La collection, qui résume ce que ses items contiennent."""
     return {
         "type": "Collection",
@@ -182,7 +212,7 @@ def build_collection(items, variables_meta, collection_id, urls, temporel) -> di
             "un fichier NetCDF par variable, sans altérer les valeurs."),
         "license": "other",
         "extent": {
-            "spatial": {"bbox": [BBOX]},
+            "spatial": {"bbox": [bbox]},
             "temporal": {"interval": [list(temporel)]},
         },
         "keywords": ["SAFRAN", "SIM2", "ISBA", "MODCOU", "réanalyse",
@@ -333,7 +363,8 @@ def generate_stac_catalog(CATALOG_DIR,
              for (variable, _), fichier in ordre]
     temporel = (min(i["properties"]["start_datetime"] for i in items),
                 max(i["properties"]["end_datetime"] for i in items))
-    collection = build_collection(items, var_meta, collection_id, urls, temporel)
+    collection = build_collection(items, var_meta, collection_id, urls, temporel,
+                                  bbox_wgs84(x, y))
 
     racine = build_root_catalog(S3_BUCKET, urls, collection["title"],
                                 read_root_catalog(s3, S3_BUCKET))
