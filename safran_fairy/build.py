@@ -118,6 +118,28 @@ def _rolling_tail(rolling: Path, after: pd.Timestamp, work_dir: Path) -> Path | 
     return tail
 
 
+def _sweep(OUTPUT_DIR: Path) -> list[Path]:
+    """
+    Retire ce qu'un assemblage interrompu a laissé derrière lui.
+
+    Trois traces possibles, selon l'endroit où le run s'est arrêté : la queue
+    du glissant, le fichier temporaire de ncrcat, et la sortie sous son nom
+    provisoire. Aucune n'est ramassée par clean_local, dont la règle porte sur
+    des noms de sortie valides, et la première suffit à faire échouer un
+    contrôle du dossier entier sur « nom de fichier non conforme ».
+
+    C'est rare, mais rien d'autre ne le fait, et le coût est trois globs.
+    """
+    laisses = [p for motif in ("*_tail.nc", "*_QUOT_SIM2_tmp.nc", "*.ncrcat.tmp")
+               for p in OUTPUT_DIR.glob(motif)]
+    for p in laisses:
+        p.unlink(missing_ok=True)
+    if laisses:
+        line(f"{len(laisses)} reste(s) d'un assemblage interrompu retiré(s) : "
+             f"{', '.join(sorted(p.name for p in laisses))}")
+    return laisses
+
+
 def _up_to_date(target: Path, inputs: list[Path]) -> bool:
     """
     Whether an already assembled file can be left alone.
@@ -202,6 +224,7 @@ def build(CONVERT_DIR, OUTPUT_DIR, variables: list[str] | None = None,
 
     OUTPUT_DIR = Path(OUTPUT_DIR)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    _sweep(OUTPUT_DIR)
 
     found = inventory(CONVERT_DIR)
     if variables:
