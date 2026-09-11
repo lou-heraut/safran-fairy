@@ -14,6 +14,7 @@ pipeline transposes the data, it does not judge it.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -150,6 +151,23 @@ def _check_variable(ds: xr.Dataset, variable: str) -> list[str]:
                       if name[::-1] in ("_FillValue", "units", "long_name")]
     if reversed_names:
         problems.append(f"nom(s) d'attribut inversé(s) : {', '.join(reversed_names)}")
+
+    # « time: sum time: mean » déclare deux traitements pour la même dimension,
+    # donc n'en déclare aucun. NCO 5.0.6 écrivait cela tout seul en concaténant,
+    # sur 18 des 26 variables, celles dont l'étiquette n'était pas « time: mean ».
+    methodes = re.findall(r"(\w+)\s*:", data.attrs.get("cell_methods", ""))
+    repetees = sorted({nom for nom in methodes if methodes.count(nom) > 1})
+    if repetees:
+        problems.append(f"« cell_methods » déclare plusieurs méthodes pour "
+                        f"{', '.join(repetees)} : {data.attrs['cell_methods']!r}")
+
+    # La même annotation en posait une sur la coordonnée temporelle, où CF n'en
+    # attend pas : cell_methods décrit une variable, jamais son axe.
+    portantes = [nom for nom in ("time", "x", "y")
+                 if nom in ds.variables and "cell_methods" in ds[nom].attrs]
+    if portantes:
+        problems.append(f"« cell_methods » posé sur la ou les coordonnées "
+                        f"{', '.join(portantes)}, où CF n'en attend pas")
 
     if "crs" not in ds.variables:
         problems.append("variable « crs » absente, le géoréférencement est perdu")

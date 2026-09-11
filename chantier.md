@@ -253,6 +253,28 @@ chez les voisins, mais fait disparaître `safran_fairy` du code alors que
 
 ## Journal
 
+**2026-09-11, une étiquette que personne n'écrivait.** Le fichier `ETP` publié
+déclarait `cell_methods = time: sum time: mean`, deux traitements pour la même
+dimension, donc aucun. Aucune ligne du dépôt n'écrit « time: mean » : ni le
+code, dans aucune de ses versions depuis février, ni la fiche de variables, qui
+a toujours porté `time: sum` pour l'`ETP`.
+
+La recherche a éliminé une à une la conversion, la fiche, le cache, puis la
+chaîne d'assemblage rejouée en entier sur les fichiers rapatriés de la
+production, qui rendait un fichier propre. Restait la seule chose qui diffère
+entre les deux machines : `ncrcat` annote de lui même avec NCO 5.0.6, celui du
+serveur, et pas avec la 5.2.1, celle du poste. Le détail est dans CLAUDE.md.
+
+Deux leçons. Un défaut peut n'exister que sur une machine, et le reproduire
+ailleurs ne l'infirme pas. Et il a fallu rapatrier les fichiers réels pour le
+voir : les fichiers d'essai fabriqués à la main ne le montraient pas non plus,
+faute de porter les mêmes attributs.
+
+Ce que le contrôle ne voyait pas, il le voit maintenant : `check.py` refuse une
+étiquette qui déclare deux méthodes pour une même dimension, et une étiquette
+posée sur une coordonnée. Sur les fichiers publiés le 11 septembre, il rejette
+les dix-huit variables concernées et accepte ce que la chaîne corrigée produit.
+
 **2026-09-09, la production est en ligne.** Le rebuild complet est passé, 26
 variables assemblées en 2 h 10, contrôlées sans rejet et publiées. Quatre
 défauts ont été trouvés en le faisant, tous corrigés le jour même.

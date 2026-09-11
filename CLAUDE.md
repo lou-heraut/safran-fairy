@@ -91,6 +91,18 @@ dans les messages de commit ; ici, seulement de quoi ne pas défaire le travail.
 - **`ncrcat -A` écrit un nom d'attribut à l'envers**, `eulaVlliF_` pour
   `_FillValue`, avec NCO 5.2.1. La concaténation simple ne le fait pas. Ne pas
   utiliser `-A`, et laisser `check.py` refuser les noms inversés.
+- **`ncrcat` annote `cell_methods` tout seul, et il a tort.** Avec NCO 5.0.6, une
+  concaténation simple ajoute « time: mean » à l'étiquette de la variable et en
+  pose une sur la coordonnée `time` ; `ncrcat` ne moyenne rien, et CF n'attend
+  pas de `cell_methods` sur un axe. NCO 5.2.1 ne le fait pas : le défaut dépend
+  de la machine, la production ayant la 5.0.6 et le poste de développement la
+  5.2.1. Tous les appels passent donc par la constante `NCRCAT` de `build.py`,
+  qui porte `--no_cll_mth`, acceptée par les deux versions. Mesuré le 11
+  septembre 2026 sur les mêmes fichiers d'entrée des deux côtés. Dix-huit des
+  vingt-six variables en portaient la trace, les huit autres déclarant déjà
+  « time: mean », ce qui rendait l'annotation invisible. `check.py` refuse
+  désormais une étiquette qui déclare deux méthodes pour la même dimension, et
+  une étiquette posée sur une coordonnée.
 - **`ncrcat` hérite du découpage interne de son premier fichier d'entrée**, et
   lui imposer un découpage avec `--cnk_dmn` ne rend pas la main. Le découpage se
   décide donc dans `convert.py`, sur les fichiers annuels.

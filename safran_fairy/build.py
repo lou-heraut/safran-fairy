@@ -12,8 +12,9 @@ consolidated upstream, never overrides a day a yearly file already covers: it
 only extends past the last one. When Météo-France refreshes a year, the
 provisional days it had supplied are replaced on their own.
 
-Everything goes through a single plain « ncrcat », never « ncrcat -A », which
-writes a reversed attribute name with NCO 5.2.1. See CLAUDE.md.
+Everything goes through a single « ncrcat », never « ncrcat -A », which writes a
+reversed attribute name with NCO 5.2.1, and always with « --no_cll_mth », which
+turns off an annotation NCO 5.0.6 adds on its own. See CLAUDE.md.
 """
 
 from __future__ import annotations
@@ -36,6 +37,15 @@ from .tools import build_filename
 # Files left by convert.py in CONVERT_DIR.
 _YEAR = re.compile(r"^(?P<variable>[A-Za-z0-9_]+)_QUOT_SIM2_(?P<year>\d{4})\.nc$")
 _ROLLING = re.compile(r"^(?P<variable>[A-Za-z0-9_]+)_QUOT_SIM2_latest\.nc$")
+
+
+# Every call goes through this list, so that the flag can never be forgotten on
+# one of them. « --no_cll_mth » turns off the annotation NCO adds on its own:
+# with 5.0.6 a plain concatenation appends « time: mean » to cell_methods and
+# puts one on the time coordinate, which is false twice over, ncrcat averaging
+# nothing. NCO 5.2.1 does not do it, so the defect depends on the machine. See
+# CLAUDE.md.
+NCRCAT = ["ncrcat", "-h", "-O", "--no_cll_mth"]
 
 
 def _run(command: list[str]) -> None:
@@ -113,8 +123,7 @@ def _rolling_tail(rolling: Path, after: pd.Timestamp, work_dir: Path) -> Path | 
         return None
 
     tail = work_dir / f"{rolling.stem}_tail.nc"
-    _run(["ncrcat", "-h", "-O", "-d", f"time,{first_wanted},",
-          str(rolling), str(tail)])
+    _run(NCRCAT + ["-d", f"time,{first_wanted},", str(rolling), str(tail)])
     return tail
 
 
@@ -191,7 +200,7 @@ def build_variable(variable: str, entry: dict, OUTPUT_DIR: Path,
 
     tmp = OUTPUT_DIR / f"{variable}_QUOT_SIM2_tmp.nc"
     with Chrono() as chrono:
-        _run(["ncrcat", "-h", "-O"] + [str(p) for p in pieces] + [str(tmp)])
+        _run(NCRCAT + [str(p) for p in pieces] + [str(tmp)])
         if tail:
             tail.unlink(missing_ok=True)
         _stamp_provenance(tmp, sorted(years), tail)
