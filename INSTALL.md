@@ -135,8 +135,13 @@ fichiers produits.
 coupure de la session SSH le tue là où il en est. Le passer par le service,
 `make service-restart`, le confie à systemd : il tourne alors sous son propre
 utilisateur, indépendant de la session, et c'est de surcroît le chemin exact de
-la production. À défaut, `tmux` ou `screen`. Interrompre le `systemctl start`
-avec Ctrl-C ne coupe que l'attente du client, jamais le service.
+la production. À défaut, `tmux` ou `screen`.
+
+`make service-restart` rend la main immédiatement : la cible passe `--no-block`
+à systemd. Sans cette option, `systemctl start` attend la fin d'un service
+`oneshot`, ce qui bloque le terminal pendant toute la durée du run. Si tu la
+lances à la main sans `--no-block`, un Ctrl-C ne coupe que l'attente du client,
+jamais le service.
 
 Chaque étape s'exécute aussi seule, pour reprendre ou déboguer :
 

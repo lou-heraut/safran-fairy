@@ -134,8 +134,14 @@ service-stop: ## Stoppe le run en cours (le timer reste actif)
 
 service-restart: ## Relance immédiatement le service sans attendre le timer
 	@echo "$(GREEN)Relance immédiate du service...$(NC)"
-	sudo systemctl start safran-sync.service
-	@echo "$(GREEN)✓ Service relancé$(NC)"
+# « --no-block » rend la main tout de suite. Sans lui, systemctl attend qu'un
+# service oneshot soit terminé, donc deux heures et demie ici, et la seule
+# façon de récupérer son terminal est un Ctrl-C qui a tout l'air de tuer le
+# run alors qu'il ne coupe que l'attente.
+	sudo systemctl start --no-block safran-sync.service
+	@echo "$(GREEN)✓ Service lancé, il tourne en arrière-plan$(NC)"
+	@echo "  suivre    : make service-logs"
+	@echo "  en cours ?: systemctl is-active safran-sync.service"
 
 service-restart-timer: ## Relance le timer
 	@echo "$(GREEN)Relance du timer...$(NC)"
